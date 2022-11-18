@@ -14,6 +14,7 @@ if not thisdir in sys.path:
     sys.path.append(thisdir)
 
 import preprocessing_config
+import tqdm
 
 
 # Things the preprocessing needs to do
@@ -46,12 +47,15 @@ def load_data(input_folder:str, variables_list):
     # hier öffnest du jetzt alle diese files. Mit *pd.read_parquet* wird ein einzelnes parquet file geladen. 
     # Die geöffneten files sammelst du dann in einer Liste, die du mit *pd.concat* konkatinierst, sprichst an einander hängst
     # Am Ende hast du dann also ein pandas dataframe, das alle Informationen beinhaltet
+
+    path_bar = tqdm(source_paths)
+    path_bar.set_description("Loading file")
     pd_data = pd.concat([
                     pd.read_parquet(
                         file_path, 
                         columns=cols
                     )
-                    for file_path in source_paths
+                    for file_path in path_bar
                 ])
     return pd_data
 
@@ -88,6 +92,28 @@ def selection_events(df):
     reduced_df = df
     return reduced_df
 
+def add_class_weights(df):
+    """
+    Add class weights to mitigate difference in occurance between classes.
+    Final weight for each class is 1/(occurance of class)
+
+    Args:
+    df: input pandas.DataFrame with data and class labels in columns 'label'
+
+    Return:
+    pandas.DataFrame: final data frame including new column 'class_weights'
+    """
+    # count occurance of values in column 'labels'
+    label_counts = df["labels"].value_counts()
+    
+    # initialize array for class weights with same dimension as labels column
+    class_weights = np.zeros_like(df["labels"], dtype="float64")
+    for label, count in zip(label_counts.index, label_counts):
+        class_weights += np.where(df["labels"] == label, 1./count, 0.)
+
+    df["class_weights"] = class_weights
+    return df
+
 def add_columns(df):
     """
     Add columns needed for the training 
@@ -98,7 +124,7 @@ def add_columns(df):
     Return:
     reduced_df_with_added_columns: the reduced dataframe with only the selected events and the added columns
     """
-    reduced_df_with_added_columns = df
+    reduced_df_with_added_columns = add_class_weights(df)
     return reduced_df_with_added_columns
 
 def change_features(df):
@@ -145,15 +171,6 @@ def main(*args, **kwargs):
         tmp_dataframe["labels"] = label*np.ones(tmp_dataframe.shape[0])
         conc_dataframe = pd.concat([conc_dataframe, tmp_dataframe])
 
-    class_weights = np.zeros(len(conc_dataframe))
-
-    for label_class in preprocessing_config.label_classes:
-        size_label_class = len(conc_dataframe[conc_dataframe["labels"]==label_class])
-        label_class_position = (conc_dataframe["labels"]==label_class).to_numpy()
-        one_class_weights=float(label_class_position/(size_label_class))
-        class_weights = class_weights + one_class_weights
-
-    conc_dataframe["class_weights"] = class_weights
     reduced_dataframe = selection_events(conc_dataframe)
     reduced_dataframe_with_added_columns = add_columns(reduced_dataframe)
     final_dataframe = change_features(reduced_dataframe_with_added_columns)
@@ -162,8 +179,12 @@ def main(*args, **kwargs):
     # prepare to write preprocessed data
     output_dir = kwargs.get("output_dir")
     if output_dir:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         # write data
-        final_dataframe.to_parquet(os.path.join(output_dir,"preprocessed_data.parquet"), engine="pyarrow")
+        final_path = os.path.join(output_dir,"preprocessed_data.parquet")
+        print(f"write preprocessed data to {final_path}")
+        final_dataframe.to_parquet(final_path, engine="pyarrow")
         print(f"writing data to folder {output_dir}")
     else:
         print("cannot write data: no output dir defined!")

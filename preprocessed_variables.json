@@ -34,6 +34,8 @@
         "HH_phi",
         "HH_e",
         "HH_mass",
-        "HH_pt"
+        "HH_pt",
+        "plot_weight",
+        "lumi_weight"
     ]
 }

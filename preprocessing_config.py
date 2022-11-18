@@ -7,7 +7,7 @@ label_config = {
     "tth":0
 }
 
-label_classes = [0,1]
+# label_classes = [0,1]
 
 
 input_directories = [
