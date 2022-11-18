@@ -31,7 +31,7 @@ def load_data(input_folder:str, variables_list):
     function to load parquet files as pd.DataFrame. 
     Args:
 
-    input_folder (str):  path to folder containing 'data_resolved*.parquet' files
+    input_folder (str):  path to folder containing 'data_vbf*.parquet' files
     variables_list (list): list of all variables to get from the parquet files 
 
     Return:
@@ -39,7 +39,7 @@ def load_data(input_folder:str, variables_list):
     for the given variables_list and the given input_folder
     """ 
     # source_paths ist eine Liste mit den Pfaden zu den files, die du öffnest möchstest
-    wildcard = os.path.join(input_folder, "data_resolved*.parquet")
+    wildcard = os.path.join(input_folder, "data_vbf*.parquet")
     source_paths = glob(wildcard)
     cols = variables_list
 
