@@ -145,6 +145,15 @@ def main(*args, **kwargs):
         tmp_dataframe["labels"] = label*np.ones(tmp_dataframe.shape[0])
         conc_dataframe = pd.concat([conc_dataframe, tmp_dataframe])
 
+    class_weights = np.zeros(len(conc_dataframe))
+
+    for label_class in preprocessing_config.label_classes:
+        size_label_class = len(conc_dataframe[conc_dataframe["labels"]==label_class])
+        label_class_position = (conc_dataframe["labels"]==label_class).to_numpy()
+        one_class_weights=float(label_class_position/(size_label_class))
+        class_weights = class_weights + one_class_weights
+
+    conc_dataframe["class_weights"] = class_weights
     reduced_dataframe = selection_events(conc_dataframe)
     reduced_dataframe_with_added_columns = add_columns(reduced_dataframe)
     final_dataframe = change_features(reduced_dataframe_with_added_columns)
