@@ -245,11 +245,14 @@ class DataHandler(object):
         tf_input_features = tf.data.Dataset.from_tensor_slices(self.input_features.to_numpy())
         # tf_labels = tf.data.Dataset.from_tensor_slices(dict(labels))
         tf_labels = tf.data.Dataset.from_tensor_slices(self.labels.to_numpy())
-        tf_class_weights = tf.data.Dataset.from_tensor_slices(self.class_weights.to_numpy())
-        final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
-        numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, final_weights))
+        if len(self.training_weight_names) != 0:
+            tf_class_weights = tf.data.Dataset.from_tensor_slices(self.class_weights.to_numpy())
+            final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
+            numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, final_weights))
+        else:
+            numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels))
         print("generated final tf Dataset for training!")
-        from IPython import embed; embed()
+
         self.split_dataset(numeric_dict_ds, SHUFFLE_BUFFER=len(self.input_features), BATCH_SIZE=BATCH_SIZE)
 
         # return input_features, mean, std, train_data, validation_data, test_data
@@ -292,7 +295,8 @@ class DataHandler(object):
             pd_data = (pd_data.sample(frac=1, random_state=shuffle_random_state)
                         .reset_index(drop=True))
         self.labels = pd_data[self.label_names]
-        self.class_weights = pd_data[self.training_weight_names]
+        if len(self.training_weight_names) != 0:
+            self.class_weights = pd_data[self.training_weight_names]
         # input_features= self.data_preparation(
         #     pd_data,
         #     shuffle_random_state=shuffle_random_state
