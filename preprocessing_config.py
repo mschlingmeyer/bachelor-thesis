@@ -1,9 +1,13 @@
 label_config = {
     "hh_ggf": 1,
     "dy": 0,
-    "tt": 0,
+    "tt_sl": 0,
+    "tt_fh":0,
+    "tt_dl":0,
     "tth":0
 }
+
+label_classes = [0,1]
 
 
 input_directories = [
