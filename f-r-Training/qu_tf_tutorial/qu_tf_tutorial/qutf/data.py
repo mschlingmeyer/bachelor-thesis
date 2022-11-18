@@ -48,13 +48,18 @@ class DataHandler(object):
         validation_percentage=0.2,
         SHUFFLE_BUFFER=123456,
         random_state=1,
-        BATCH_SIZE=128
+        BATCH_SIZE=128,
+        label_names=["labels"],
+        training_weight_names=["class_weights"]
         ):
         super().__init__()
 
         # define member variables
         self.input_features = None
         self.labels = None
+        
+        self.label_names = label_names
+        self.training_weight_names = training_weight_names
 
         self.normed_labels=None
         self.label_means = None
@@ -160,7 +165,7 @@ class DataHandler(object):
         # fix the file range if necessary
         if stop_file < 0:
             stop_file = specs.n_files[kind] - 1
-        cols = self.input_features_list+["labels"] + ["class_weights"]#+["weights_cross_section"]
+        cols = self.input_features_list+self.label_names + self.training_weight_names
         source_paths = self.file_paths
         try:
             pd_data = pd.concat([
@@ -241,7 +246,10 @@ class DataHandler(object):
         # tf_labels = tf.data.Dataset.from_tensor_slices(dict(labels))
         tf_labels = tf.data.Dataset.from_tensor_slices(self.labels.to_numpy())
         tf_class_weights = tf.data.Dataset.from_tensor_slices(self.class_weights.to_numpy())
-        numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, tf_class_weights))
+        final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
+        numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, final_weights))
+        print("generated final tf Dataset for training!")
+        from IPython import embed; embed()
         self.split_dataset(numeric_dict_ds, SHUFFLE_BUFFER=len(self.input_features), BATCH_SIZE=BATCH_SIZE)
 
         # return input_features, mean, std, train_data, validation_data, test_data
@@ -283,14 +291,14 @@ class DataHandler(object):
         else:
             pd_data = (pd_data.sample(frac=1, random_state=shuffle_random_state)
                         .reset_index(drop=True))
-        self.labels = pd_data["labels"]
-        self.class_weights = pd_data["class_weights"]
+        self.labels = pd_data[self.label_names]
+        self.class_weights = pd_data[self.training_weight_names]
         # input_features= self.data_preparation(
         #     pd_data,
         #     shuffle_random_state=shuffle_random_state
         # )
         
-        self.input_features = pd_data.drop(columns=["labels","class_weights"])
+        self.input_features = pd_data.drop(columns=self.label_names+self.training_weight_names)
         # columns = [
         #     "deltaR_det1_gen1",
         #     "deltaR_det1_gen2",
