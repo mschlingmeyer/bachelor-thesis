@@ -116,6 +116,14 @@ dnn_architectures = {
 
 }
 
+dnn_architectures["Doris"] = dnn_architectures["Charles"]
+dnn_architectures["Doris"]["training_weight_names"] = ["class_weights"]
+
+dnn_architectures["Doris_with_plot_weight"] = dnn_architectures["Doris"]
+dnn_architectures["Doris_with_plot_weight"]["training_weight_names"] = ["class_weights", "plot_weight"]
+
+dnn_architectures["Doris_plot_and_lumi_weight"] = dnn_architectures["Doris"]
+dnn_architectures["Doris_with_plot_weight"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight"]
 
 # so wie new, nur andere lr
 # dnn_architectures["new_lr_lower"] = dnn_architectures["new"]

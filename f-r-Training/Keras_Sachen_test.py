@@ -114,7 +114,12 @@ def main(*args, **kwargs):
     # train_variables = "bjet1_pt bjet1_eta bjet1_phi bjet1_e".split()
    
     EPOCHS = hp.get("epochs", 50)
-    data_handler = data.DataHandler(variable_config_path=os.path.join(thisdir, "variables.json"), BATCH_SIZE=hp.get("BATCH_SIZE", 128), file_paths = args)
+    data_handler = data.DataHandler(
+        variable_config_path=os.path.join(thisdir, "variables.json"),
+        BATCH_SIZE=hp.get("BATCH_SIZE", 128),
+        file_paths = args,
+        training_weight_names = hp.get("training_weight_names", [])
+    )
     # input_features, mean, std, train_data, validation_data, test_data = qutf.data.load_model_inputs(BATCH_SIZE=BATCH_SIZE)
     # check_input_target(numeric_dict_ds, mean=mean, std=std, data_name="mother")
     inputs = data_handler.preprocess_input_features()
