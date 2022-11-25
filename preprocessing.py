@@ -14,7 +14,7 @@ if not thisdir in sys.path:
     sys.path.append(thisdir)
 
 import preprocessing_config
-import tqdm
+from tqdm import tqdm
 
 
 # Things the preprocessing needs to do
