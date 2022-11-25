@@ -322,7 +322,8 @@ class DataHandler(object):
         if SHUFFLE_BUFFER==None:
             SHUFFLE_BUFFER=self.SHUFFLE_BUFFER
         numeric_dict_batches = numeric_dict_ds
-        nevents = len(list(numeric_dict_batches))
+        # nevents = len(list(numeric_dict_batches))
+        nevents = numeric_dict_batches.cardinality().numpy()
         train_size = np.floor(self.train_percentage*nevents)  
         valid_size = np.floor(self.validation_percentage*nevents)
         # test_size =  np.floor((1-train_percentage-validation_percentage)*nevents)
