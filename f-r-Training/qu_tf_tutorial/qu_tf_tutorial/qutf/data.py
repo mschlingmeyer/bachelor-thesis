@@ -92,7 +92,7 @@ class DataHandler(object):
         self.load_data()
 
         # embed()
-        print("transforming labels")
+        # print("transforming labels")
         # transform the labels for later training
         # self.transform_labels()
 
