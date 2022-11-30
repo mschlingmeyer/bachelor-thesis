@@ -176,7 +176,7 @@ def confusion_matrix_plot(confusion_matrix, output_name, colormap="viridis", cha
     
     create_plot( "dnn_plots" , output_name, suffix="")
 
-def roc_curves_plots(predictions, labels, output_name):
+def roc_curves_plots(predictions, labels, output_name, sample_weight=None):
     """
     Calculate and plot the ROC-curve for the given model predictions and labels
 
@@ -185,7 +185,12 @@ def roc_curves_plots(predictions, labels, output_name):
     labels: the ground truth values
     """
     from sklearn.metrics import roc_curve, roc_auc_score
-    fpr, tpr, thresholds=roc_curve(labels, predictions, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(
+        labels, 
+        predictions, 
+        pos_label=1, 
+        sample_weight=sample_weight
+    )
 
     fig, ax = plt.subplots()
     plt.plot(fpr, tpr, 'r')
@@ -202,7 +207,11 @@ def roc_curves_plots(predictions, labels, output_name):
     create_plot("dnn_plots", output_name, suffix="")    
 
 def main(dnn_folders=sys.argv[1:]):
-    data_handler = data.DataHandler(variable_config_path=os.path.join(thisdir, "variables.json"))
+    data_handler = data.DataHandler(
+        variable_config_path=os.path.join(thisdir, "variables.json"),
+        file_paths=[os.path.realpath(os.path.join(thisdir, "../../preprocessed_data/binary_dnn/preprocessed_data.parquet"))],
+        training_weight_names=[],
+    )
     mean = data_handler.label_means
     std = data_handler.label_stds
     test_data = data_handler.test_data
@@ -215,7 +224,12 @@ def main(dnn_folders=sys.argv[1:]):
         if current_dir.endswith(os.path.sep):
             current_dir=os.path.dirname(current_dir)
         prefix = os.path.basename(current_dir)
-        model = tf.keras.models.load_model(dnn_folder, custom_objects={"custom_loss_function":dnn_utils.custom_loss_function})
+        model = tf.keras.models.load_model(
+            dnn_folder,
+            custom_objects={
+                "custom_loss_function" : dnn_utils.custom_loss_function
+            }
+        )
         # create_dnn_plots(model, std, mean, test_data, prefix)
         create_dnn_plots(
             model=model, 
@@ -256,23 +270,57 @@ def create_dnn_plots(
 
     pred_vector = model.predict(test_data)
     #print(pred_vector.shape)
-    y = np.concatenate([y for x, y in test_data], axis=0)
+    weights = None
+    y = None
+
     test_data = test_data.unbatch()
-    #print(y,y.shape)
 
+    # check dimensions of input data
+    input_dim = len(test_data.element_spec)
+    # if there are no weights, the dimension is 2
+    try:
+        if input_dim == 2:
+            y = np.concatenate([y for x, y in test_data], axis=0)
+        elif input_dim == 3:
+            y = np.concatenate([y for x, y, w in test_data], axis=0)
+            weights = np.array([w for x, y, w in test_data])
+        #print(y,y.shape)
+        other_plots_two(
+            thing1=pred_vector.flatten()[y==1.],
+            thing2=pred_vector.flatten()[y==0.],
+            xlabel="Network Output",
+            title="",
+            range=[0, 1],
+            legends=["Signal", "Background"]
+        )
 
- 
-    plt.hist(pred_vector.flatten()[y==1.])
+        create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions", suffix=prefix)
     
-    plt.hist(pred_vector.flatten()[y==0.])
+    except Exception as e:
+        print("error during readout of data!")
+        print(e)
+        print("start debug shell")
+        embed()
+
+
     
    
 
-    roc_curves_plots(pred_vector.flatten(),y, prefix + "_roc_curves")
+    roc_curves_plots(
+        pred_vector.flatten(),
+        y,
+        prefix + "_roc_curves",
+        sample_weight=weights
+    )
     predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
 
     from sklearn.metrics import confusion_matrix
-    matrix = confusion_matrix(y, predictions_class_labels, sample_weight=None, normalize="true") # or normalize="pred" depending on what you want
+    matrix = confusion_matrix(
+        y,
+        predictions_class_labels,
+        sample_weight=weights,
+        normalize="true" # or normalize="pred" depending on what you want
+    ) 
 
     confusion_matrix_plot(matrix, prefix + "_confusion_matrix")  # , colormap="jet", change_tick_labels=True)
 
