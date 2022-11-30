@@ -1,3 +1,5 @@
+import numpy as np
+from copy import deepcopy
 dnn_architectures = {
     "baseline":
     {
@@ -116,15 +118,25 @@ dnn_architectures = {
 
 }
 
-dnn_architectures["Doris"] = dnn_architectures["Charles"]
+dnn_architectures["Doris"] = deepcopy(dnn_architectures["Charles"])
 dnn_architectures["Doris"]["training_weight_names"] = ["class_weights"]
 
-dnn_architectures["Doris_with_plot_weight"] = dnn_architectures["Doris"]
+dnn_architectures["Doris_with_plot_weight"] = deepcopy(dnn_architectures["Doris"])
 dnn_architectures["Doris_with_plot_weight"]["training_weight_names"] = ["class_weights", "plot_weight"]
 
-dnn_architectures["Doris_plot_and_lumi_weight"] = dnn_architectures["Doris"]
-dnn_architectures["Doris_with_plot_weight"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight"]
+dnn_architectures["Doris_plot_and_lumi_weight"] = deepcopy(dnn_architectures["Doris"])
+dnn_architectures["Doris_plot_and_lumi_weight"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight"]
+dnn_architectures["Doris_plot_and_lumi_weight"]["epochs"] = 800
 
+dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
+dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] += ["weight_equalize_sig_bkg"]
+
+start = 1
+end=7
+for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype="int"):
+    colname = f"Doris_sig_{weight}"
+    dnn_architectures[colname] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
+    dnn_architectures[colname]["training_weight_names"] += [f"signal_weight_{int(weight)}"]
 # so wie new, nur andere lr
 # dnn_architectures["new_lr_lower"] = dnn_architectures["new"]
 
