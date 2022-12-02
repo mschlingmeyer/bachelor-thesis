@@ -10,6 +10,8 @@ from tensorflow import keras
 import Keras_Sachen_test
 from IPython import embed
 import dnn_utils
+from argparse import ArgumentParser
+import importlib
 
 thisdir = os.path.realpath(os.path.dirname(__file__))
 mlp_style_path = os.path.join(thisdir, "plot.mplstyle")
@@ -88,16 +90,38 @@ def other_plots_two(
     range,
     title,
     xlabel,
-    legends=[]
+    legends=[],
+    weights=None,
     ): 
     with plt.style.context(mlp_style_path):
         fig, axs = plt.subplots(figsize=(20,10))
-        axs.hist(thing1, bins=50, histtype='step', density=True, range=range)
-        axs.hist(thing2, bins=50, histtype='step', density=True, ls="dashed", range=range)
+        weights1 = None
+        weights2 = None
+        if weights and isinstance(weights, list):
+            weights1 = weights[0]
+            weights2 = weights[1]
+        axs.hist(
+            thing1,
+            bins=50,
+            histtype='step',
+            density=True,
+            weights=weights1,
+            range=range,
+        )
+        axs.hist(
+            thing2,
+            bins=50,
+            histtype='step',
+            density=True,
+            ls="dashed",
+            range=range,
+            weights=weights2,
+        )
         axs.set_title(f'{title}')
         axs.set_xlabel(f'{xlabel}')
         axs.set_ylabel('Normierte Anzahl')
-        axs.legend(list(reversed(legends)))
+        # axs.legend(list(reversed(legends)))
+        axs.legend(legends)
 
 def calculate_theta(eta):
     return 2*tf.math.atan(tf.math.exp(-eta))
@@ -206,24 +230,41 @@ def roc_curves_plots(predictions, labels, output_name, sample_weight=None):
 
     create_plot("dnn_plots", output_name, suffix="")    
 
-def main(dnn_folders=sys.argv[1:]):
-    data_handler = data.DataHandler(
-        variable_config_path=os.path.join(thisdir, "variables.json"),
-        file_paths=[os.path.realpath(os.path.join(thisdir, "../../preprocessed_data/binary_dnn/preprocessed_data.parquet"))],
-        training_weight_names=[],
-    )
-    mean = data_handler.label_means
-    std = data_handler.label_stds
-    test_data = data_handler.test_data
-
-    nevents = len(test_data)
-    train_valid_events = int(np.floor(nevents*(data_handler.train_percentage + data_handler.validation_percentage)))
-    input_feature_list = data_handler.input_features.columns
+def main(dnn_folders, **kwargs):
+    variable_config_path = kwargs.get("variable_config_path")
+    input_files = kwargs.get("input_data", None)
+    hyperparameters = kwargs.get("hyperparameters", None)
+    dnn_architectures = dict()
+    if hyperparameters:
+        dirname = os.path.dirname(hyperparameters)
+        if not dirname in sys.path:
+            sys.path.append(dirname)
+        modulename = os.path.basename(hyperparameters)
+        modulename = ".".join(modulename.split(".")[:-1])
+        hyperpars = importlib.import_module(modulename)
+        dnn_architectures = hyperpars.dnn_architectures
+    
+    
     for dnn_folder in dnn_folders:
         current_dir = dnn_folder
         if current_dir.endswith(os.path.sep):
             current_dir=os.path.dirname(current_dir)
         prefix = os.path.basename(current_dir)
+        hyperparameters = dnn_architectures.get(prefix, dict())
+
+        data_handler = data.DataHandler(
+            variable_config_path=variable_config_path,
+            file_paths=input_files,
+            **hyperparameters
+        )
+        mean = data_handler.label_means
+        std = data_handler.label_stds
+        test_data = data_handler.test_data
+
+        nevents = len(test_data)
+        train_valid_events = int(np.floor(nevents*(data_handler.train_percentage + data_handler.validation_percentage)))
+        input_feature_list = data_handler.input_features.columns
+        
         model = tf.keras.models.load_model(
             dnn_folder,
             custom_objects={
@@ -280,18 +321,22 @@ def create_dnn_plots(
     # if there are no weights, the dimension is 2
     try:
         if input_dim == 2:
-            y = np.concatenate([y for x, y in test_data], axis=0)
+            y = np.concatenate([y for x, y in test_data.as_numpy_iterator()], axis=0)
         elif input_dim == 3:
-            y = np.concatenate([y for x, y, w in test_data], axis=0)
-            weights = np.array([w for x, y, w in test_data])
+            y = np.concatenate([y for x, y, w in test_data.as_numpy_iterator()], axis=0)
+            weights = np.array([w for x, y, w in test_data.as_numpy_iterator()])
         #print(y,y.shape)
+        embed()
+        mask_sig = y == 1.
+        mask_bkg = y == 0.
         other_plots_two(
-            thing1=pred_vector.flatten()[y==1.],
-            thing2=pred_vector.flatten()[y==0.],
+            thing1=pred_vector.flatten()[mask_sig],
+            thing2=pred_vector.flatten()[mask_bkg],
             xlabel="Network Output",
             title="",
             range=[0, 1],
-            legends=["Signal", "Background"]
+            legends=["Signal", "Background"],
+            weights=[weights[mask_sig], weights[mask_bkg]],
         )
 
         create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions", suffix=prefix)
@@ -301,10 +346,6 @@ def create_dnn_plots(
         print(e)
         print("start debug shell")
         embed()
-
-
-    
-   
 
     roc_curves_plots(
         pred_vector.flatten(),
@@ -326,7 +367,34 @@ def create_dnn_plots(
 
     # pred_vector = model.predict(test_data)
 
+def parse_arguments():
+    parser = ArgumentParser()
+
+    parser.add_argument("--hyperparameters", "-p", type=str,
+        help="path to config file for hyper parameters",
+        dest="hyperparameters"
+    )
+    parser.add_argument("-i", "--input-data",
+        help="path to input data to be used for the evaluation",
+        nargs="*",
+        metavar="path/to/preprocessed_data.parquet",
+        type=str,
+    )
+    parser.add_argument("dnn_folders", nargs="+",
+        help="paths to folders containing dnn models to be evaluated",
+        metavar="path/to/dnn_folders",
+        type=str
+    )
+    parser.add_argument("-v", "--variable_config_path",
+        help="path to config .json file containing input variables",
+        type=str,
+        metavar="path/to/variable_config.json",
+        default=os.path.join(thisdir, "variables.json"),
+    )
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_arguments()
+    main(**vars(args))
