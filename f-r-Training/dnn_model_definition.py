@@ -89,10 +89,12 @@ def create_binary_model(
     model.compile(optimizer=tf.keras.optimizers.Adam(),
                 loss=custom_loss_function,
                 metrics=[
-                    tf.keras.metrics.MeanSquaredError(),
+                    # tf.keras.metrics.MeanSquaredError(),
                     # tf.keras.metrics.KLDivergence(),
-                    tf.keras.metrics.MeanAbsoluteError(),
+                    # tf.keras.metrics.MeanAbsoluteError(),
                     tf.keras.metrics.Accuracy(),
+                    tf.keras.metrics.BinaryAccuracy(),
+                    tf.keras.metrics.BinaryCrossentropy(),
                     ],
                 run_eagerly=False)
     return model
