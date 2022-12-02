@@ -131,12 +131,18 @@ dnn_architectures["Doris_plot_and_lumi_weight"]["epochs"] = 800
 dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
 dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] += ["weight_equalize_sig_bkg"]
 
+
+dnn_architectures["Doris_equalize_bkg_sig_v2"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
+dnn_architectures["Doris_global_weight"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
+dnn_architectures["Doris_global_weight"]["training_weight_names"] += ["weight_global"]
 start = 1
 end=7
 for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype="int"):
     colname = f"Doris_sig_{weight}"
     dnn_architectures[colname] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
     dnn_architectures[colname]["training_weight_names"] += [f"signal_weight_{int(weight)}"]
+
+
 # so wie new, nur andere lr
 # dnn_architectures["new_lr_lower"] = dnn_architectures["new"]
 
