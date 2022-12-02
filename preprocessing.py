@@ -15,7 +15,7 @@ if not thisdir in sys.path:
 
 import preprocessing_config
 from tqdm import tqdm
-
+from IPython import embed
 
 # Things the preprocessing needs to do
 # - add labels to data -> config?
@@ -40,7 +40,7 @@ def load_data(input_folder:str, variables_list):
     for the given variables_list and the given input_folder
     """ 
     # source_paths ist eine Liste mit den Pfaden zu den files, die du öffnest möchstest
-    wildcard = os.path.join(input_folder, "data_vbf*.parquet")
+    wildcard = os.path.join(input_folder, "*.parquet")
     source_paths = glob(wildcard)
     cols = variables_list
 
@@ -125,6 +125,21 @@ def add_columns(df):
     reduced_df_with_added_columns: the reduced dataframe with only the selected events and the added columns
     """
     reduced_df_with_added_columns = add_class_weights(df)
+
+    # add different signal weights
+    start = 1
+    end=7
+    for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype="float32"):
+        reduced_df_with_added_columns[f"signal_weight_{int(weight)}"] = np.where(reduced_df_with_added_columns["labels"] == 1, weight, 1.)
+    
+    bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 0]
+    sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 1]
+    bkg_weight = np.sum(bkg_df["plot_weight"]*bkg_df["lumi_weight"])
+    sig_weight = np.sum(sig_df["plot_weight"]*sig_df["lumi_weight"])
+    ratio = bkg_weight/sig_weight if not any(x == 0 for x in [bkg_weight, sig_weight]) else 1.
+    reduced_df_with_added_columns["weight_equalize_sig_bkg"] = np.where(reduced_df_with_added_columns["labels"] == 1, ratio, 1.)
+    reduced_df_with_added_columns["weight_global"] = 1e12
+    # embed()
     return reduced_df_with_added_columns
 
 def change_features(df):
