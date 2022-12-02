@@ -42,11 +42,6 @@ class EarlyStopping(keras.callbacks.Callback):
             warnings.warn("Early stopping requires {} and {} available".format(
                 self.val_monitor, self.train_monitor), RuntimeWarning)
 
-        if current_val < self.best_validation:
-            self.best_validation = current_val
-            self.best_epoch = epoch
-            self.best_model_weights = self.model.get_weights()
-
         # check loss by percentage difference
         if self.value:
             if (current_val-current_train)/(current_train) > self.value and epoch > self.min_epochs:
@@ -61,6 +56,10 @@ class EarlyStopping(keras.callbacks.Callback):
                     self.model.stop_training = True
             else:
                 self.n_failed=0
+                if current_val < self.best_validation:
+                    self.best_validation = current_val
+                    self.best_epoch = epoch
+                    self.best_model_weights = self.model.get_weights()
 
         # check loss by validation performance increase
         if self.stopping_epochs:
