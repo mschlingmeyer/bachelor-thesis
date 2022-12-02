@@ -50,7 +50,8 @@ class DataHandler(object):
         random_state=1,
         BATCH_SIZE=128,
         label_names=["labels"],
-        training_weight_names=["class_weights"]
+        training_weight_names=["class_weights"],
+        **kwargs
         ):
         super().__init__()
 
