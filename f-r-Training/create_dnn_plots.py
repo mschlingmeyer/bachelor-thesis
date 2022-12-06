@@ -255,8 +255,10 @@ def main(dnn_folders, **kwargs):
         data_handler = data.DataHandler(
             variable_config_path=variable_config_path,
             file_paths=input_files,
+            parametrized=hyperparameters.get("parametrized", False)
             **hyperparameters
         )
+
         mean = data_handler.label_means
         std = data_handler.label_stds
         test_data = data_handler.test_data
@@ -326,7 +328,7 @@ def create_dnn_plots(
             y = np.concatenate([y for x, y, w in test_data.as_numpy_iterator()], axis=0)
             weights = np.array([w for x, y, w in test_data.as_numpy_iterator()])
         #print(y,y.shape)
-        embed()
+        # embed()
         mask_sig = y == 1.
         mask_bkg = y == 0.
         other_plots_two(
@@ -372,6 +374,7 @@ def parse_arguments():
 
     parser.add_argument("--hyperparameters", "-p", type=str,
         help="path to config file for hyper parameters",
+        default=os.path.join(thisdir, "hyperparameters.py"),
         dest="hyperparameters"
     )
     parser.add_argument("-i", "--input-data",
