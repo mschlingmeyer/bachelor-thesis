@@ -50,10 +50,11 @@ def load_data(input_folder:str, variables_list):
 
     path_bar = tqdm(source_paths)
     path_bar.set_description("Loading file")
-    pd_data = pd.concat([
-                    pd.read_parquet(
-                        file_path, 
-                        columns=cols
+    for file_path in path_bar:
+        pd_data = pd.concat([
+                        pd.read_parquet(
+                            file_path,
+                            columns=cols
                     )
                     for file_path in path_bar
                 ])
@@ -134,8 +135,8 @@ def add_columns(df):
     
     bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 0]
     sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 1]
-    bkg_weight = np.sum(bkg_df["plot_weight"]*bkg_df["lumi_weight"])
-    sig_weight = np.sum(sig_df["plot_weight"]*sig_df["lumi_weight"])
+    bkg_weight = np.sum(bkg_df["class_weights"]*bkg_df["plot_weight"]*bkg_df["lumi_weight"])
+    sig_weight = np.sum(sig_df["class_weights"]*sig_df["plot_weight"]*sig_df["lumi_weight"])
     ratio = bkg_weight/sig_weight if not any(x == 0 for x in [bkg_weight, sig_weight]) else 1.
     reduced_df_with_added_columns["weight_equalize_sig_bkg"] = np.where(reduced_df_with_added_columns["labels"] == 1, ratio, 1.)
     reduced_df_with_added_columns["weight_global"] = 1e12

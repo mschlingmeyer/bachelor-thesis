@@ -21,11 +21,11 @@ parameter_config = {
 
 
 input_directories = [
-    "/afs/desy.de/user/s/schlingm/nfs/2018__dy",
     "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl0_kt1",
     "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl1_kt1",
     "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl2p45_kt1",
     "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl5_kt1",
+    "/afs/desy.de/user/s/schlingm/nfs/2018__dy",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_sl",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_fh",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_dl",
