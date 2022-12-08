@@ -79,14 +79,47 @@ def get_label(label_config, directory_name):
         exit(0)
         # now find the match
 
-def change_flag(kl_value, len_dataframe):
+def multiply_weights(df, weights_list):
+    """
+    multiply all the columns which names are given within a list and give the sum over all events back
+    """
+    multiplied_array=np.ones(df.shape[0])
+    for weight_name in weights_list:
+        multiplied_array=multiplied_array*df[weight_name].to_numpy()
+    return sum(multiplied_array)
+
+def calculate_signal_prob(df, weights_list):
+    """
+    gives an array with the probability for an event from the signal samples to be from a sample with
+    an underlying specific kappa_lambda value, given the weights columns used in weights_list
+    """
+    signal_events=df[df["labels"] == 1]
+    kl0_events=df[df["kappa_lambda"] == 0]
+    kl1_events=df[df["kappa_lambda"] == 1]
+    kl2p45_events=df[df["kappa_lambda"] == 2.45]
+    kl5_events=df[df["kappa_lambda"] == 5]
+
+    sum_signal_event_weights=multiply_weights(signal_events, weights_list)
+    sum_kl0_event_weights=multiply_weights(kl0_events, weights_list)
+    sum_kl1_event_weights=multiply_weights(kl1_events, weights_list)
+    sum_kl2p45_event_weights=multiply_weights(kl2p45_events, weights_list)
+    sum_kl5_event_weights=multiply_weights(kl5_events, weights_list)
+
+    signal_probability = np.array([float(sum_kl0_event_weights/sum_signal_event_weights),
+                                  float(sum_kl1_event_weights/sum_signal_event_weights),
+                                  float(sum_kl2p45_event_weights/sum_signal_event_weights),
+                                  float(sum_kl5_event_weights/sum_signal_event_weights),
+                                  ])
+    print("signal_probability for weights_list", weights_list, "is", signal_probability)
+    return signal_probability
+
+def change_flag(kl_value_array, signal_probability):
     """
     look at the returned kl_value from the parameter_config. If kl_value is 9999 (flag),
-    change it to a random array to be multiplied with the correct size of the input
+    change it to a random value with the same distribution as signal
     """
-    if kl_value==9999:
-        return np.random.uniform(low=0, high=5, size=len_dataframe)
-    return kl_value
+    kl_value_array[np.where(kl_value_array==9999.)]=np.random.choice(np.array([0,1,2.45,5]), size=len(np.where(kl_value_array==9999.)[0]), replace=True, p=signal_probability)
+    return kl_value_array
 
 def get_kl(parameter_config, directory_name):
     # get name of directory containing the parquet files
@@ -162,8 +195,8 @@ def add_columns(df):
 
     bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 0]
     sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 1]
-    bkg_weight = np.sum(bkg_df["plot_weight"]*bkg_df["lumi_weight"])
-    sig_weight = np.sum(sig_df["plot_weight"]*sig_df["lumi_weight"])
+    bkg_weight = np.sum(bkg_df["class_weights"]*bkg_df["plot_weight"]*bkg_df["lumi_weight"])
+    sig_weight = np.sum(sig_df["class_weights"]*sig_df["plot_weight"]*sig_df["lumi_weight"])
     ratio = bkg_weight/sig_weight if not any(x == 0 for x in [bkg_weight, sig_weight]) else 1.
     reduced_df_with_added_columns["weight_equalize_sig_bkg"] = np.where(reduced_df_with_added_columns["labels"] == 1, ratio, 1.)
     reduced_df_with_added_columns["weight_global"] = 1e12
@@ -180,6 +213,17 @@ def change_features(df):
     Return:
     final_df: the preprocessed dataframe
     """
+    # print("df[kappa_lambda]", df["kappa_lambda"])
+    # weights_list = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+    weights_list = ["class_weights"]
+    signal_prob = calculate_signal_prob(df, weights_list)
+
+    kappa_lambda_values = df["kappa_lambda"].to_numpy()
+    kappa_lambda_values = change_flag(kappa_lambda_values, signal_prob)
+    # print("kappa_lambda_values", kappa_lambda_values, print(len(np.where(kappa_lambda_values!=0))))
+
+    df["kappa_lambda"] = kappa_lambda_values
+    # print("after change flag",df["kappa_lambda"])
     final_df = df
     return final_df
 
@@ -214,8 +258,7 @@ def main(*args, **kwargs):
         label = get_label(label_config=label_config, directory_name=directory)
         tmp_dataframe["labels"] = label*np.ones(tmp_dataframe.shape[0])
         kl_value = get_kl(parameter_config=parameter_config, directory_name=directory)
-        kl_value_without_flag = change_flag(kl_value=kl_value, len_dataframe=tmp_dataframe.shape[0])
-        tmp_dataframe["kappa_lambda"] = kl_value_without_flag*np.ones(tmp_dataframe.shape[0])
+        tmp_dataframe["kappa_lambda"] = kl_value*np.ones(tmp_dataframe.shape[0])
         conc_dataframe = pd.concat([conc_dataframe, tmp_dataframe])
 
     reduced_dataframe = selection_events(conc_dataframe)
