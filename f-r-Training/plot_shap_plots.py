@@ -7,11 +7,15 @@ from IPython import embed
 
 import matplotlib.pyplot as plt
 import qu_tf_tutorial
-from qu_tf_tutorial.qutf import data
+from qutf import data
 import tensorflow as tf
 from tensorflow import keras
 import Keras_Sachen_test
-import tensorflow_datasets as tfds
+# import tensorflow_datasets as tfds
+from argparse import ArgumentParser
+import importlib
+import dnn_utils
+
 
 HOMEPATH=os.path.realpath(os.path.dirname(__file__))
 
@@ -76,7 +80,7 @@ def calculate_shap_values(
     input_features=None,
     input_features_conti=None,
     input_features_disc=None,
-    n_events=2000,
+    n_events=100,
     outpath=os.path.join(HOMEPATH, "shap_plots"),
     outname="shap_plots",
     draw_violin=True
@@ -156,26 +160,60 @@ def calculate_shap_values(
             from IPython import embed; embed()
 
 
-def main(dnn_models=sys.argv[1:]):
-    # first, load data
-    data_handler = data.DataHandler(variable_config_path=os.path.join(HOMEPATH, "variables.json"))
+def main(dnn_folders, **kwargs):
+    variable_config_path = kwargs.get("variable_config_path")
+    input_files = kwargs.get("input_data", None)
+    hyperparameters = kwargs.get("hyperparameters", None)
+    dnn_architectures = dict()
+    if hyperparameters:
+        dirname = os.path.dirname(hyperparameters)
+        if not dirname in sys.path:
+            sys.path.append(dirname)
+        modulename = os.path.basename(hyperparameters)
+        modulename = ".".join(modulename.split(".")[:-1])
+        hyperpars = importlib.import_module(modulename)
+        dnn_architectures = hyperpars.dnn_architectures
     
-    for model_path in dnn_models:
+    
+    for dnn_folder in dnn_folders:
+        current_dir = dnn_folder
+        if current_dir.endswith(os.path.sep):
+            current_dir=os.path.dirname(current_dir)
+        prefix = os.path.basename(current_dir)
+        if prefix[:10]=="binary_dnn":
+            prefix=prefix[11:]
+        if prefix[:14]=="multiclass_dnn":
+            prefix=prefix[15:]
+        hyperparameters = dnn_architectures.get(prefix, dict())
+        print("hyperparameters", prefix, hyperparameters)
+
+        data_handler = data.DataHandler(
+            variable_config_path=variable_config_path,
+            file_paths=input_files,
+            #parametrized=True,
+            **hyperparameters
+        )
+    # first, load data
+    # data_handler = data.DataHandler(variable_config_path=os.path.join(HOMEPATH, "variables.json"))
+    
+    # for model_path in dnn_models:
         model = tf.keras.models.load_model(
-            model_path,
+            dnn_folder,
             custom_objects={
-                "custom_loss_function": Keras_Sachen_test.custom_loss_function
+                "custom_loss_function" : dnn_utils.custom_loss_function
                 }
             )
-        if model_path.endswith(os.path.sep):
-            model_path = os.path.dirname(model_path)        
-        training_nr = os.path.basename(model_path)
+        if dnn_folder.endswith(os.path.sep):
+            dnn_folder = os.path.dirname(dnn_folder)        
+        training_nr = os.path.basename(dnn_folder)
         input_features_df = data_handler.input_features
         nevents = len(input_features_df)
         train_valid_events = int(np.floor(nevents*(data_handler.train_percentage + data_handler.validation_percentage)))
         train_events = int(np.floor(nevents*(data_handler.train_percentage)))
         train_input = input_features_df[:train_events]
         test_input = input_features_df[train_valid_events:]
+        # train_input = data_handler.train_data
+        # test_input = data_handler.test_data
         calculate_shap_values(
             model = model,
             train_data=train_input,
@@ -186,5 +224,34 @@ def main(dnn_models=sys.argv[1:]):
             # draw_violin=True
         )
 
+def parse_arguments():
+    parser = ArgumentParser()
+
+    parser.add_argument("--hyperparameters", "-p", type=str,
+        help="path to config file for hyper parameters",
+        default=os.path.join(HOMEPATH, "hyperparameters.py"),
+        dest="hyperparameters"
+    )
+    parser.add_argument("-i", "--input-data",
+        help="path to input data to be used for the evaluation",
+        nargs="*",
+        metavar="path/to/preprocessed_data.parquet",
+        type=str,
+    )
+    parser.add_argument("dnn_folders", nargs="+",
+        help="paths to folders containing dnn models to be evaluated",
+        metavar="path/to/dnn_folders",
+        type=str
+    )
+    parser.add_argument("-v", "--variable_config_path",
+        help="path to config .json file containing input variables",
+        type=str,
+        metavar="path/to/variable_config.json",
+        default=os.path.join(HOMEPATH, "variables.json"),
+    )
+    args = parser.parse_args()
+    return args
+
 if __name__ == '__main__':
-    main()
+    args = parse_arguments()
+    main(**vars(args))
