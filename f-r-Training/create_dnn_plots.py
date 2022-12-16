@@ -250,13 +250,20 @@ def main(dnn_folders, **kwargs):
         if current_dir.endswith(os.path.sep):
             current_dir=os.path.dirname(current_dir)
         prefix = os.path.basename(current_dir)
+        if prefix[:10]=="binary_dnn":
+            prefix=prefix[11:]
+        if prefix[:14]=="multiclass_dnn":
+            prefix=prefix[15:]
         hyperparameters = dnn_architectures.get(prefix, dict())
+        print("hyperparameters", prefix, hyperparameters)
 
         data_handler = data.DataHandler(
             variable_config_path=variable_config_path,
             file_paths=input_files,
+            #parametrized=True,
             **hyperparameters
         )
+
         mean = data_handler.label_means
         std = data_handler.label_stds
         test_data = data_handler.test_data
@@ -308,7 +315,6 @@ def create_dnn_plots(
 ):
 
     #print("test data", test_data)
-
     pred_vector = model.predict(test_data)
     #print(pred_vector.shape)
     weights = None
@@ -323,10 +329,12 @@ def create_dnn_plots(
         if input_dim == 2:
             y = np.concatenate([y for x, y in test_data.as_numpy_iterator()], axis=0)
         elif input_dim == 3:
+            inputs = np.vstack([x for x, y, w in test_data.as_numpy_iterator()])
             y = np.concatenate([y for x, y, w in test_data.as_numpy_iterator()], axis=0)
             weights = np.array([w for x, y, w in test_data.as_numpy_iterator()])
-        #print(y,y.shape)
-        # embed()
+        print(inputs,inputs.shape)
+
+        #embed()
         mask_sig = y == 1.
         mask_bkg = y == 0.
         other_plots_two(
@@ -365,13 +373,77 @@ def create_dnn_plots(
 
     confusion_matrix_plot(matrix, prefix + "_confusion_matrix")  # , colormap="jet", change_tick_labels=True)
 
-    # pred_vector = model.predict(test_data)
+    print("input_feature_list", input_feature_list, len(input_feature_list))
+    if "kappa_lambda" in input_feature_list:
+        print("this is a parametrized network")
+        kl0_indices=np.where((y==1) & (inputs[:,-1]==0))
+        kl1_indices=np.where((y==1) & (inputs[:,-1]==1))
+        kl2p45_indices=np.where((y==1) & (inputs[:,-1]==2.45))
+        kl5_indices=np.where((y==1) & (inputs[:,-1]==5))
+        bkg_indices=np.where(y==0)
+
+        make_parametrized_plots(model, inputs[kl0_indices].copy(), y[kl0_indices], weights[kl0_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 0, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl1_indices].copy(), y[kl1_indices], weights[kl1_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 1, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl2p45_indices].copy(), y[kl2p45_indices], weights[kl2p45_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5, prefix, outpath)
+
+
+
+def make_parametrized_plots(model, signal,
+                            signal_labels,
+                            signal_weights,
+                            background,
+                            background_labels,
+                            background_weights,
+                            kl_value,
+                            prefix,
+                            outpath):
+    signal[:,-1]=kl_value
+    background[:,-1]=kl_value
+    prediction_background = model.predict(background)
+    prediction_signal = model.predict(signal)
+
+    other_plots_two(
+        thing1=prediction_signal,
+        thing2=prediction_background,
+        xlabel="Network Output",
+        title="",
+        range=[0, 1],
+        legends=["Signal", "Background"],
+        weights=[signal_weights, background_weights],
+        )
+
+    create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions_kl_{}".format(kl_value), suffix=prefix)
+
+    roc_curves_plots(
+        np.concatenate([prediction_signal, prediction_background]),
+        np.concatenate([signal_labels, background_labels]),
+        prefix + "_roc_curves_kl_{}".format(kl_value),
+        sample_weight=np.concatenate([signal_weights, background_weights])
+    )
+    predictions_class_labels = np.where(np.concatenate([prediction_signal, prediction_background]) > 0.5, 1, 0)
+
+    from sklearn.metrics import confusion_matrix
+    matrix = confusion_matrix(
+        np.concatenate([signal_labels, background_labels]),
+        predictions_class_labels,
+        sample_weight=np.concatenate([signal_weights, background_weights]),
+        normalize="true" # or normalize="pred" depending on what you want
+    )
+
+    confusion_matrix_plot(matrix, prefix + "_confusion_matrix_kl_{}".format(kl_value))  # , colormap="jet", change_tic
+
 
 def parse_arguments():
     parser = ArgumentParser()
 
     parser.add_argument("--hyperparameters", "-p", type=str,
         help="path to config file for hyper parameters",
+        default=os.path.join(thisdir, "hyperparameters.py"),
         dest="hyperparameters"
     )
     parser.add_argument("-i", "--input-data",

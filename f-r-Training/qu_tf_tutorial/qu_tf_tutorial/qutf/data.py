@@ -51,6 +51,7 @@ class DataHandler(object):
         BATCH_SIZE=128,
         label_names=["labels"],
         training_weight_names=["class_weights"],
+        parametrized=False,
         **kwargs
         ):
         super().__init__()
@@ -61,6 +62,7 @@ class DataHandler(object):
         
         self.label_names = label_names
         self.training_weight_names = training_weight_names
+        self.parametrized = parametrized
 
         self.normed_labels=None
         self.label_means = None
@@ -79,13 +81,18 @@ class DataHandler(object):
         self.random_state = random_state
         
         if not file_paths:
-            self.file_paths = [os.path.join(thisdir, "..", "..", "..", "..", "preprocessed_data", "preprocessed_data.parquet")]
+            if parametrized:
+                self.file_paths = [os.path.join(thisdir, "..", "..", "..", "..", "preprocessed_data", "preprocessed_parametrized_data.parquet")]
+            else:
+                self.file_paths = [os.path.join(thisdir, "..", "..", "..", "..", "preprocessed_data", "preprocessed_data.parquet")]
         else:
             self.file_paths = file_paths
         
         print("loading information from config file")
         # load information about variables from config
         self.init_config_file(variable_config_path)
+        if parametrized:
+            self.input_features_list+=["kappa_lambda"]
         
         # embed()
         print("loading data")
@@ -167,6 +174,7 @@ class DataHandler(object):
         if stop_file < 0:
             stop_file = specs.n_files[kind] - 1
         cols = self.input_features_list+self.label_names + self.training_weight_names
+        print("used weights", self.training_weight_names)
         source_paths = self.file_paths
         try:
             pd_data = pd.concat([
@@ -249,6 +257,12 @@ class DataHandler(object):
         if len(self.training_weight_names) != 0:
             tf_class_weights = tf.data.Dataset.from_tensor_slices(self.class_weights.to_numpy())
             final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
+            class_weights_array_for_print=self.class_weights.prod(axis=1).to_numpy()
+            labels_array_for_print=self.labels.to_numpy().reshape(-1)
+            print("final_weights", class_weights_array_for_print)
+            print("sum sig final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==1)]))
+            print("sum bkg final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==0)]))
+
             numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, final_weights))
         else:
             numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels))

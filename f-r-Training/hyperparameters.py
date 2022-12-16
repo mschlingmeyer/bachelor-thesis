@@ -121,6 +121,9 @@ dnn_architectures = {
 dnn_architectures["Doris"] = deepcopy(dnn_architectures["Charles"])
 dnn_architectures["Doris"]["training_weight_names"] = ["class_weights"]
 
+dnn_architectures["Doris_parametrized"] = deepcopy(dnn_architectures["Doris"])
+dnn_architectures["Doris_parametrized"]["parametrized"] = True
+
 dnn_architectures["Doris_with_plot_weight"] = deepcopy(dnn_architectures["Doris"])
 dnn_architectures["Doris_with_plot_weight"]["training_weight_names"] = ["class_weights", "plot_weight"]
 
@@ -128,8 +131,11 @@ dnn_architectures["Doris_plot_and_lumi_weight"] = deepcopy(dnn_architectures["Do
 dnn_architectures["Doris_plot_and_lumi_weight"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight"]
 dnn_architectures["Doris_plot_and_lumi_weight"]["epochs"] = 800
 
-dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
-dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] += ["weight_equalize_sig_bkg"]
+dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
+dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"]["parametrized"] = True
 
 
 dnn_architectures["Doris_equalize_bkg_sig_v2"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
