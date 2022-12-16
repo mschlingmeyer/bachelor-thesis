@@ -326,7 +326,7 @@ def create_dnn_plots(
             y = np.concatenate([y for x, y, w in test_data.as_numpy_iterator()], axis=0)
             weights = np.array([w for x, y, w in test_data.as_numpy_iterator()])
         #print(y,y.shape)
-        embed()
+        # embed()
         mask_sig = y == 1.
         mask_bkg = y == 0.
         other_plots_two(
