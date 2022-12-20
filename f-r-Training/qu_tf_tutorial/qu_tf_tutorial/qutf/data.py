@@ -52,6 +52,7 @@ class DataHandler(object):
         label_names=["labels"],
         training_weight_names=["class_weights"],
         parametrized=False,
+        multiclass=False,
         **kwargs
         ):
         super().__init__()
@@ -79,6 +80,7 @@ class DataHandler(object):
         self.gen_features_list = []
         self.file_paths = []
         self.random_state = random_state
+        self.multiclass = multiclass
         
         if not file_paths:
             if parametrized:
@@ -253,7 +255,9 @@ class DataHandler(object):
         # with tf.device('/cpu:0'):
         tf_input_features = tf.data.Dataset.from_tensor_slices(self.input_features.to_numpy())
         # tf_labels = tf.data.Dataset.from_tensor_slices(dict(labels))
-        tf_labels = tf.data.Dataset.from_tensor_slices(self.labels.to_numpy())
+        tf_labels = tf.data.Dataset.from_tensor_slices(self.labels.to_numpy() if not self.multiclass
+                                    else tf.one_hot(self.labels.to_numpy().flatten(), np.unique(self.labels.to_numpy()).shape[0])
+                                )
         if len(self.training_weight_names) != 0:
             tf_class_weights = tf.data.Dataset.from_tensor_slices(self.class_weights.to_numpy())
             final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
