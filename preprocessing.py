@@ -133,7 +133,7 @@ def add_columns(df):
     for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype="float32"):
         reduced_df_with_added_columns[f"signal_weight_{int(weight)}"] = np.where(reduced_df_with_added_columns["labels"] == 1, weight, 1.)
     
-    bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 0]
+    bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] != 1]
     sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 1]
     bkg_weight = np.sum(bkg_df["class_weights"]*bkg_df["plot_weight"]*bkg_df["lumi_weight"])
     sig_weight = np.sum(sig_df["class_weights"]*sig_df["plot_weight"]*sig_df["lumi_weight"])
