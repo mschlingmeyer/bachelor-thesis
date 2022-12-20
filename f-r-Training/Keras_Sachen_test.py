@@ -56,16 +56,16 @@ def create_model_callbacks(
     steps_per_execution = number_training_samples * checkpoint_frequency
 
 
-    # callbacks.append(tf.keras.callbacks.ModelCheckpoint(
-    #     speicherort,
-    #     monitor='mse',
-    #     verbose=1,
-    #     save_best_only=False,
-    #     save_weights_only=False,
-    #     mode='auto',
-    #     # save_freq=steps_per_execution,
-    #     save_freq=number_training_samples,
-    # ))
+    callbacks.append(tf.keras.callbacks.ModelCheckpoint(
+        speicherort,
+        monitor='mse',
+        verbose=1,
+        save_best_only=False,
+        save_weights_only=False,
+        mode='auto',
+        # save_freq=steps_per_execution,
+        save_freq=number_training_samples,
+    ))
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=initial_learning_rate,
@@ -119,14 +119,17 @@ def main(*args, **kwargs):
         BATCH_SIZE=hp.get("BATCH_SIZE", 128),
         file_paths = args,
         training_weight_names = hp.get("training_weight_names", []),
-        parametrized = hp.get("parametrized", False)
+        parametrized = hp.get("parametrized", False),
+        multiclass=hp.get("multiclass", False)
     )
     # input_features, mean, std, train_data, validation_data, test_data = qutf.data.load_model_inputs(BATCH_SIZE=BATCH_SIZE)
     # check_input_target(numeric_dict_ds, mean=mean, std=std, data_name="mother")
     inputs = data_handler.preprocess_input_features()
     model = create_model(
         inputs=inputs,
+        number_of_labels=len(np.unique(data_handler.labels.values)),
         **hp)
+    from IPython import embed; embed()
     #restore_checkpoint(model, './qu_tf_tutorial/checkpoints/_cp-010.ckpt')
     
     # check_input_target(train_data, mean=mean, std=std, data_name="train")
