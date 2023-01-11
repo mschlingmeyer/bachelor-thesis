@@ -13,7 +13,7 @@ thisdir = os.path.realpath(os.path.dirname(__file__))
 if not thisdir in sys.path:
     sys.path.append(thisdir)
 
-import preprocessing_multiclass_config as preprocessing_config
+import preprocessing_multiclass_config_v2 as preprocessing_config
 from tqdm import tqdm
 from IPython import embed
 
