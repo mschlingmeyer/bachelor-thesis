@@ -8,7 +8,7 @@ basepath = os.path.join(thisdir, "..")
 if not basepath in sys.path:
     sys.path.append(basepath)
 
-import preprocessing_multiclass_config
+import preprocessing_multiclass_config_v2 as preprocessing_multiclass_config
 dnn_architectures = {
     "baseline":
     {
@@ -160,7 +160,7 @@ for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype
 
 dnn_architectures["Edgar"] = deepcopy(dnn_architectures["Charles"])
 dnn_architectures["Edgar"]["epochs"] = 5
-dnn_architectures["Edgar"]["label_names"] = preprocessing_multiclass_config.label_names
+dnn_architectures["Edgar"]["label_map"] = preprocessing_multiclass_config.label_map
 dnn_architectures["Edgar"]["training_weight_names"] = ["class_weights"]
 dnn_architectures["Edgar"]["multiclass"] = True
 # so wie new, nur andere lr
