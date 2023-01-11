@@ -84,6 +84,40 @@ def input_plots(
         axs.set_ylabel('Normierte Anzahl')
         axs.legend(list(reversed(legends)))
 
+def plot_distributions(
+    value_dict,
+    range,
+    title,
+    xlabel,
+    ylabel="Normierte Anzahl",
+    bins=50
+):
+    legends = []
+    with plt.style.context(mlp_style_path):
+        fig, axs = plt.subplots(figsize=(20,10))
+        for label in value_dict:
+            weights = value_dict[label].get("weights", None)
+            values = value_dict[label]["values"]
+            histtype = value_dict[label].get("histtype", "step")
+            style = value_dict[label].get("style", None)
+            legends.append(label)
+
+            axs.hist(
+                values,
+                bins=bins,
+                histtype=histtype,
+                density=True,
+                ls=style,
+                weights=weights,
+                range=range,
+            )
+        
+        axs.set_title(f'{title}')
+        axs.set_xlabel(f'{xlabel}')
+        axs.set_ylabel(f'{ylabel}')
+        # axs.legend(list(reversed(legends)))
+        axs.legend(legends) 
+
 def other_plots_two(
     thing1,
     thing2,
@@ -175,32 +209,52 @@ def calculate_higgs_mass(jet1, jet2, mass_b=tf.constant( 0, dtype=tf.float32)):
 def invariant_mass(e1, e2, p1, p2, c):
     return tf.math.sqrt((e1+e2)**2 - (p1**2 + p2**2 + 2*p1*p2*c))
 
-def confusion_matrix_plot(confusion_matrix, output_name, colormap="viridis", change_tick_labels=False, xtick_labels=["signal", "background"], ytick_labels=["signal", "background"]):
-    #here kommt das Kommentar der Methode, siehe txt Datei
-    fig, ax = plt.subplots()
-    plt.imshow(np.array(confusion_matrix), cmap=plt.get_cmap(colormap),
-                interpolation='nearest')
-    width, height = confusion_matrix.shape
-    for x in range(width):
-        for y in range(height):
-            ax.annotate(r"$\bf{{{:.2f}}}$".format(confusion_matrix[x][y]), xy=(y, x),
-                    horizontalalignment='center',
-                    verticalalignment='center')
-    plt.xticks(range(width), range(width))
-    plt.yticks(range(height), range(height))
-    if change_tick_labels:
-        plt.xticks(range(width), xtick_labels)
-        plt.yticks(range(height), ytick_labels)
-    #plt.title('confusion matrix', fontsize=11)
-    plt.xlabel(r'Predicted label', fontsize=20)
-    plt.ylabel(r'True label', fontsize=20)
-    plt.colorbar()
-    fig.tight_layout()
-    plt.text(0.99,1.01,r'$\mathbf{CMS}$ $\mathit{Private}$ $\mathit{Work}$',horizontalalignment='right',verticalalignment='bottom',transform=ax.transAxes) 
-    
-    create_plot( "dnn_plots" , output_name, suffix="")
+def confusion_matrix_plot(
+    confusion_matrix, 
+    output_name, 
+    colormap="viridis", 
+    change_tick_labels=False, 
+    labels=["signal", "background"],
+):
+    with plt.style.context(mlp_style_path):
+        #here kommt das Kommentar der Methode, siehe txt Datei
+        fig, ax = plt.subplots()
+        plt.imshow(np.array(confusion_matrix), cmap=plt.get_cmap(colormap),
+                    interpolation='nearest')
+        width, height = confusion_matrix.shape
+        for x in range(width):
+            for y in range(height):
+                ax.annotate(r"$\bf{{{:.2f}}}$".format(confusion_matrix[x][y]), xy=(y, x),
+                        horizontalalignment='center',
+                        verticalalignment='center')
+        plt.xticks(range(width), range(width))
+        plt.yticks(range(height), range(height))
+        embed()
+        if change_tick_labels:
+            plt.xticks(range(width), labels)
+            plt.yticks(range(height), labels)
+        #plt.title('confusion matrix', fontsize=11)
+        plt.xlabel(r'Predicted label', fontsize=20)
+        plt.ylabel(r'True label', fontsize=20)
+        plt.colorbar()
+        fig.tight_layout()
+        plt.text(
+            0.99,
+            1.01,
+            r'$\mathbf{CMS}$ $\mathit{Private}$ $\mathit{Work}$',
+            horizontalalignment='right',
+            verticalalignment='bottom',
+            transform=ax.transAxes
+        ) 
+        
+        create_plot( "dnn_plots" , output_name, suffix="")
 
-def roc_curves_plots(predictions, labels, output_name, sample_weight=None):
+def roc_curves_plots(
+    predictions,
+    labels,
+    output_name,
+    sample_weight=None,
+    ax_legend=None,):
     """
     Calculate and plot the ROC-curve for the given model predictions and labels
 
@@ -208,27 +262,43 @@ def roc_curves_plots(predictions, labels, output_name, sample_weight=None):
     predictions: the model predictions
     labels: the ground truth values
     """
-    from sklearn.metrics import roc_curve, roc_auc_score
-    fpr, tpr, thresholds = roc_curve(
-        labels, 
-        predictions, 
-        pos_label=1, 
-        sample_weight=sample_weight
-    )
+    try:
+        with plt.style.context(mlp_style_path):
+            from sklearn.metrics import roc_curve, roc_auc_score
+            fpr, tpr, thresholds = roc_curve(
+                labels, 
+                predictions, 
+                pos_label=1, 
+                sample_weight=sample_weight
+            )
 
-    fig, ax = plt.subplots()
-    plt.plot(fpr, tpr, 'r')
-    ax.axline((0.5, 0.5), slope=1)
-    plt.text(0.04, 0.98, 'A.u.c.={:.5f}'.format(roc_auc_score(labels, predictions)),
-             horizontalalignment='left',
-             verticalalignment='top',
-             transform=ax.transAxes)
-    #plt.title('ROC curve', fontsize=11)
-    plt.xlabel(r'FPR', fontsize=11)
-    plt.ylabel(r'TPR', fontsize=11)
-    plt.text(0.99,1.01,r'$\mathbf{CMS}$ $\mathit{Private}$ $\mathit{Work}$',horizontalalignment='right',verticalalignment='bottom',transform=ax.transAxes)
+            fig, ax = plt.subplots()
+            plt.plot(fpr, tpr, 'r')
+            ax.axline((0.5, 0.5), slope=1)
+            plt.text(0.3, 0.98, 'A.u.c.={:.5f}'.format(roc_auc_score(labels, predictions)),
+                    horizontalalignment='left',
+                    verticalalignment='top',
+                    transform=ax.transAxes)
+            #plt.title('ROC curve', fontsize=11)
+            plt.xlabel(r'FPR', fontsize=11)
+            plt.ylabel(r'TPR', fontsize=11)
+            plt.text(
+                0.99,
+                1.01,
+                r'$\mathbf{CMS}$ $\mathit{Private}$ $\mathit{Work}$',
+                horizontalalignment='right',
+                verticalalignment='bottom',
+                transform=ax.transAxes
+            )
+            if ax_legend:
+                ax.legend(ax_legend)
 
-    create_plot("dnn_plots", output_name, suffix="")    
+            create_plot("dnn_plots", output_name, suffix="") 
+    except Exception as e:
+        print("error in 'roc_curves_plot':")
+        print(e)
+        print("start debugging shell")
+        embed()   
 
 def main(dnn_folders, **kwargs):
     variable_config_path = kwargs.get("variable_config_path")
@@ -285,7 +355,8 @@ def main(dnn_folders, **kwargs):
             mean=mean,
             test_data=test_data,
             prefix=prefix,
-            input_feature_list=list(input_feature_list),    
+            input_feature_list=list(input_feature_list),
+            label_map=hyperparameters.get("label_map", None),
         )
 
 
@@ -311,7 +382,8 @@ def create_dnn_plots(
     test_data,
     input_feature_list,
     prefix="baseline",
-    outpath="plots"  
+    outpath="plots",
+    label_map=None
 ):
 
     #print("test data", test_data)
@@ -326,52 +398,121 @@ def create_dnn_plots(
     input_dim = len(test_data.element_spec)
     # if there are no weights, the dimension is 2
     try:
+        inputs = list()
+        y = list()
         if input_dim == 2:
-            y = np.concatenate([y for x, y in test_data.as_numpy_iterator()], axis=0)
+            for input_vars, truth in test_data.as_numpy_iterator():
+                inputs.append(input_vars)
+                y.append(truth)
+            inputs = np.vstack(inputs)
+            y = np.vstack(y)
         elif input_dim == 3:
-            inputs = np.vstack([x for x, y, w in test_data.as_numpy_iterator()])
-            y = np.concatenate([y for x, y, w in test_data.as_numpy_iterator()], axis=0)
-            weights = np.array([w for x, y, w in test_data.as_numpy_iterator()])
+            weights = list()
+            for input_vars, truth, w in test_data.as_numpy_iterator():
+                inputs.append(input_vars)
+                y.append(truth)
+                weights.append(w)
+            inputs = np.asarray(inputs)
+            y = np.asarray(y)
+            weights = np.asarray(weights)
         print(inputs,inputs.shape)
 
-        #embed()
-        mask_sig = y == 1.
-        mask_bkg = y == 0.
-        other_plots_two(
-            thing1=pred_vector.flatten()[mask_sig],
-            thing2=pred_vector.flatten()[mask_bkg],
-            xlabel="Network Output",
-            title="",
-            range=[0, 1],
-            legends=["Signal", "Background"],
-            weights=[weights[mask_sig], weights[mask_bkg]],
-        )
+        # get index of predicted class
+        predicted_class_index = np.argmax(pred_vector, axis=1)
+        true_class_index = np.argmax(y, axis=1)
 
-        create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions", suffix=prefix)
-    
+        # in case of binary classification, this is meaningless, so fix this here
+        if len(y.shape) == 2 and y.shape[-1] == 1:
+            predicted_class_index = np.where(pred_vector.flatten() > 0.5, 1, 0)
+            true_class_index = y
+
+        #embed()
+        # loop through the predicted classes
+        for cls_index in np.unique(predicted_class_index):
+            # slice the prediction vector to the current class
+            slice_mask = predicted_class_index == cls_index
+            current_predictions = (np.take_along_axis(
+                pred_vector, np.expand_dims(predicted_class_index, axis=-1), axis=-1)
+                .squeeze(axis=-1)
+            )[slice_mask]
+            if isinstance(weights, np.ndarray):
+                current_weights = weights[slice_mask]
+            else:
+                current_weights = None
+            current_truth = true_class_index[slice_mask]
+            # embed()
+            # other_plots_two(
+            #     thing1=pred_vector.flatten()[mask_sig],
+            #     thing2=pred_vector.flatten()[mask_bkg],
+            #     xlabel="Network Output",
+            #     title="",
+            #     range=[0, 1],
+            #     legends=["Signal", "Background"],
+            #     weights=[weights[mask_sig], weights[mask_bkg]] if weights else None,
+            # )
+            if isinstance(current_weights, np.ndarray):
+                value_dict = {
+                    label_map.get(str(truth), str(truth)) if label_map else str(truth): {
+                        "values": current_predictions[current_truth == truth],
+                        "weights": current_weights[current_truth == truth],
+                    }
+                    for truth in np.unique(current_truth)
+                }
+            else:
+                value_dict = {
+                label_map.get(str(truth), str(truth)) if label_map else str(truth): {
+                    "values": current_predictions[current_truth == truth],
+                    "weights": None,
+                }
+                for truth in np.unique(current_truth)
+            }
+
+            plot_distributions(
+                value_dict=value_dict,
+                xlabel="Network Output",
+                title="",
+                range=[0, 1],
+            )
+
+            create_plot(
+                os.path.join(thisdir, "dnn_plots"),
+                f"output_distributions_cls_{cls_index}",
+                suffix=prefix
+            )
+            roc_curves_plots(
+                current_predictions,
+                np.where(current_truth == cls_index, 1, 0),
+                prefix + f"_roc_curves_cls_{cls_index}",
+                sample_weight=current_weights,
+                ax_legend=[r"{} vs Rest".format(label_map[str(cls_index)])] if label_map else None,
+            )
+            # predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
+        from sklearn.metrics import confusion_matrix
+        if label_map:
+            true_class_index = translate_labels(label_map=label_map,value_array = true_class_index)
+            predicted_class_index = translate_labels(label_map=label_map,value_array = predicted_class_index)
+        matrix = confusion_matrix(
+            true_class_index,
+            predicted_class_index,
+            sample_weight=weights,
+            normalize="true", # or normalize="pred" depending on what you want
+            # 
+        ) 
+        confusion_matrix_plot(
+            matrix, 
+            prefix + "_confusion_matrix",
+            change_tick_labels = label_map is not None,
+            labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
+        )  # , colormap="jet", change_tick_labels=True)
+
     except Exception as e:
         print("error during readout of data!")
         print(e)
         print("start debug shell")
         embed()
 
-    roc_curves_plots(
-        pred_vector.flatten(),
-        y,
-        prefix + "_roc_curves",
-        sample_weight=weights
-    )
-    predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
+    
 
-    from sklearn.metrics import confusion_matrix
-    matrix = confusion_matrix(
-        y,
-        predictions_class_labels,
-        sample_weight=weights,
-        normalize="true" # or normalize="pred" depending on what you want
-    ) 
-
-    confusion_matrix_plot(matrix, prefix + "_confusion_matrix")  # , colormap="jet", change_tick_labels=True)
 
     print("input_feature_list", input_feature_list, len(input_feature_list))
     if "kappa_lambda" in input_feature_list:
@@ -391,7 +532,36 @@ def create_dnn_plots(
         make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
                                 inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5, prefix, outpath)
 
+def translate_labels(label_map, value_array):
+    """small function to translate integer class identifiers in *value_array* 
+    into corresponding labels as defined in *label_map*.
 
+    Args:
+        label_map (dict):   Dictionary containing the integer class identifiers
+                            as keys and the corresponding labels as values.
+                            Format should be e.g.
+                            {
+                                '0': "Signal",
+                                '1': "Background",
+                            }
+        value_array (np.ndarray):   Array containing the integer class 
+                                    identifiers to translate. 
+
+
+    Returns:
+        np.ndarray: numpy Array containing the translated labels
+    """
+    # first, create an array containing the integer class identifiers 
+    # defined in label_map
+    dict_keys = np.array(list(label_map.keys()), dtype=np.int)
+    # sort the keys
+    sort_idx = np.argsort(dict_keys)
+    # identify the position of a given integer class identifier specified in 
+    # value_array in the label_map
+    idx = np.searchsorted(dict_keys,value_array,sorter = sort_idx)
+    # finally, extract the labels for the class identifiers
+    out = np.asarray(list(label_map.values()))[sort_idx][idx]
+    return out
 
 def make_parametrized_plots(model, signal,
                             signal_labels,

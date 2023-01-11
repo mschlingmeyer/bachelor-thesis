@@ -1,6 +1,7 @@
 font.size:20 # Größe aller Texte
 font.weight:bold #normal, bold, bolder, lighter
 text.color : black   # Farbe aller Textelemente! (Labels überschreiben das)
+text.usetex: True
 
 # AXES
 axes.titlesize : 16 #
