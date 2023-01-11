@@ -9,6 +9,7 @@ if not basepath in sys.path:
     sys.path.append(basepath)
 
 import preprocessing_multiclass_config_v2 as preprocessing_multiclass_config
+import preprocessing_config as preprocessing_binary_config
 dnn_architectures = {
     "baseline":
     {
@@ -129,6 +130,7 @@ dnn_architectures = {
 
 dnn_architectures["Doris"] = deepcopy(dnn_architectures["Charles"])
 dnn_architectures["Doris"]["training_weight_names"] = ["class_weights"]
+dnn_architectures["Doris"]["label_map"] = preprocessing_binary_config.label_map
 
 dnn_architectures["Doris_parametrized"] = deepcopy(dnn_architectures["Doris"])
 dnn_architectures["Doris_parametrized"]["parametrized"] = True

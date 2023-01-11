@@ -349,7 +349,18 @@ def main(dnn_folders, **kwargs):
             }
         )
         # create_dnn_plots(model, std, mean, test_data, prefix)
-        create_dnn_plots(
+        if hyperparameters.get("multiclass", False):
+            create_dnn_plots_multiclass(
+                model=model, 
+                std=std, 
+                mean=mean,
+                test_data=test_data,
+                prefix=prefix,
+                input_feature_list=list(input_feature_list),
+                label_map=hyperparameters.get("label_map", None),
+            )
+        else:
+            create_dnn_plots_binary(
             model=model, 
             std=std, 
             mean=mean,
@@ -372,10 +383,33 @@ def filter_values(tensor, value=4):
     print(f"mask valid for {tf.reduce_mean(mask)*100}% of events")
     return mask*tensor
 
-
+def load_input_data(tf_data):
+    inputs = list()
+    y = list()
+    weights = None
+    # check dimensions of input data
+    input_dim = len(tf_data.element_spec)
+    # if there are no weights, the dimension is 2
+    if input_dim == 2:
+        for input_vars, truth in tf_data.as_numpy_iterator():
+            inputs.append(input_vars)
+            y.append(truth)
+        inputs = np.vstack(inputs)
+        y = np.vstack(y)
+    elif input_dim == 3:
+        weights = list()
+        for input_vars, truth, w in tf_data.as_numpy_iterator():
+            inputs.append(input_vars)
+            y.append(truth)
+            weights.append(w)
+        inputs = np.asarray(inputs)
+        y = np.asarray(y)
+        weights = np.asarray(weights)
+    print(inputs,inputs.shape)
+    return inputs, y, weights
 
 # fuer Maja: nur sinnvoll um zu gucken wie die Methoden genutzt werden
-def create_dnn_plots(
+def create_dnn_plots_multiclass(
     model,
     std,
     mean,
@@ -394,39 +428,14 @@ def create_dnn_plots(
 
     test_data = test_data.unbatch()
 
-    # check dimensions of input data
-    input_dim = len(test_data.element_spec)
-    # if there are no weights, the dimension is 2
+    
     try:
-        inputs = list()
-        y = list()
-        if input_dim == 2:
-            for input_vars, truth in test_data.as_numpy_iterator():
-                inputs.append(input_vars)
-                y.append(truth)
-            inputs = np.vstack(inputs)
-            y = np.vstack(y)
-        elif input_dim == 3:
-            weights = list()
-            for input_vars, truth, w in test_data.as_numpy_iterator():
-                inputs.append(input_vars)
-                y.append(truth)
-                weights.append(w)
-            inputs = np.asarray(inputs)
-            y = np.asarray(y)
-            weights = np.asarray(weights)
-        print(inputs,inputs.shape)
+        inputs, y, weights = load_input_data(test_data)
 
         # get index of predicted class
         predicted_class_index = np.argmax(pred_vector, axis=1)
         true_class_index = np.argmax(y, axis=1)
 
-        # in case of binary classification, this is meaningless, so fix this here
-        if len(y.shape) == 2 and y.shape[-1] == 1:
-            predicted_class_index = np.where(pred_vector.flatten() > 0.5, 1, 0)
-            true_class_index = y
-
-        #embed()
         # loop through the predicted classes
         for cls_index in np.unique(predicted_class_index):
             # slice the prediction vector to the current class
@@ -531,6 +540,101 @@ def create_dnn_plots(
                                 inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45, prefix, outpath)
         make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
                                 inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5, prefix, outpath)
+
+# fuer Maja: nur sinnvoll um zu gucken wie die Methoden genutzt werden
+def create_dnn_plots_binary(
+    model,
+    std,
+    mean,
+    test_data,
+    input_feature_list,
+    prefix="baseline",
+    outpath="plots",
+    label_map=None
+
+):
+
+    #print("test data", test_data)
+    pred_vector = model.predict(test_data)
+    #print(pred_vector.shape)
+    weights = None
+    y = None
+
+    test_data = test_data.unbatch()
+
+    try:
+        inputs, y, weights = load_input_data(test_data)
+        y = y.squeeze(-1)
+        pred_vector = pred_vector.squeeze(-1)
+        #embed()
+        mask_0 = np.ones_like(y)
+        mask_1 = np.ones_like(y)
+        if label_map:
+            int_class_identifier = np.array(list(label_map.keys()), dtype=np.int)
+            sorted_identifiers = np.sort(int_class_identifier)
+            # this would be nicer in a single array
+            mask_0 = y == sorted_identifiers[0]
+            mask_1 = y == sorted_identifiers[1]
+
+        # mask_sig = y == 1.
+        # mask_bkg = y == 0.
+        other_plots_two(
+            thing1=pred_vector[mask_0],
+            thing2=pred_vector[mask_1],
+            xlabel="Network Output",
+            title="",
+            range=[0, 1],
+            legends=[label_map[str(x)] for x in sorted_identifiers] if label_map else None,
+            weights=[weights[mask_0], weights[mask_1]],
+        )
+
+        create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions", suffix=prefix)
+    
+    except Exception as e:
+        print("error during readout of data!")
+        print(e)
+        print("start debug shell")
+        embed()
+
+    roc_curves_plots(
+        pred_vector.flatten(),
+        y,
+        prefix + "_roc_curves",
+        sample_weight=weights
+    )
+    predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
+
+    from sklearn.metrics import confusion_matrix
+    matrix = confusion_matrix(
+        y,
+        predictions_class_labels,
+        sample_weight=weights,
+        normalize="true" # or normalize="pred" depending on what you want
+    ) 
+
+    confusion_matrix_plot(matrix, prefix + "_confusion_matrix",
+        change_tick_labels = label_map is not None,
+        labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
+    )  # , colormap="jet", change_tick_labels=True)
+
+    print("input_feature_list", input_feature_list, len(input_feature_list))
+    if "kappa_lambda" in input_feature_list:
+        print("this is a parametrized network")
+        kl0_indices=np.where((y==1) & (inputs[:,-1]==0))
+        kl1_indices=np.where((y==1) & (inputs[:,-1]==1))
+        kl2p45_indices=np.where((y==1) & (inputs[:,-1]==2.45))
+        kl5_indices=np.where((y==1) & (inputs[:,-1]==5))
+        bkg_indices=np.where(y==0)
+
+        make_parametrized_plots(model, inputs[kl0_indices].copy(), y[kl0_indices], weights[kl0_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 0, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl1_indices].copy(), y[kl1_indices], weights[kl1_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 1, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl2p45_indices].copy(), y[kl2p45_indices], weights[kl2p45_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45, prefix, outpath)
+        make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5, prefix, outpath)
+
 
 def translate_labels(label_map, value_array):
     """small function to translate integer class identifiers in *value_array* 

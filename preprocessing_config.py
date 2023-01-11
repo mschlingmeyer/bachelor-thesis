@@ -8,7 +8,10 @@ label_config = {
 }
 
 # label_classes = [0,1]
-
+label_map = {
+    "1": r'ggF$\rightarrow$HH (SM)',
+    "0": r'SM Backgrounds'
+}
 
 input_directories = [
     "/afs/desy.de/user/s/schlingm/nfs/2018__dy",
