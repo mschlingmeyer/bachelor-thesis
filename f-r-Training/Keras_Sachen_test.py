@@ -88,6 +88,8 @@ def create_model_callbacks(
         )
 
     with plt.style.context(mlp_other_style):
+        print("DEBUG")
+        embed()
         callbacks.append(llp.PlotLossesKerasTF(
             outputs=[llp.outputs.MatplotlibPlot(cell_size=(8, 4))]
             )
@@ -129,7 +131,6 @@ def main(*args, **kwargs):
         inputs=inputs,
         number_of_labels=len(np.unique(data_handler.labels.values)),
         **hp)
-    from IPython import embed; embed()
     #restore_checkpoint(model, './qu_tf_tutorial/checkpoints/_cp-010.ckpt')
     
     # check_input_target(train_data, mean=mean, std=std, data_name="train")
@@ -146,13 +147,14 @@ def main(*args, **kwargs):
     print("start fit")
     with device:
     # with tf.device("/cpu:0"):
-        fit_history = model.fit(
-                data_handler.train_data, 
-                validation_data=data_handler.validation_data, 
-                epochs=EPOCHS,
-                verbose=1,
-                callbacks=callbacks
-        )
+        with plt.style.context(mlp_other_style):
+            fit_history = model.fit(
+                    data_handler.train_data, 
+                    validation_data=data_handler.validation_data, 
+                    epochs=EPOCHS,
+                    verbose=1,
+                    callbacks=callbacks
+            )
 
     dnnplt.create_plot("dnn_plots", this_architecture, suffix="plots", style=mlp_other_style)   
 
