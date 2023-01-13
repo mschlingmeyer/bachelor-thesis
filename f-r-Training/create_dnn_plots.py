@@ -234,8 +234,8 @@ def confusion_matrix_plot(
             plt.xticks(range(width), labels)
             plt.yticks(range(height), labels)
         #plt.title('confusion matrix', fontsize=11)
-        plt.xlabel(r'Predicted label', fontsize=20)
-        plt.ylabel(r'True label', fontsize=20)
+        plt.xlabel(r'Predicted label')
+        plt.ylabel(r'True label')
         plt.colorbar()
         fig.tight_layout()
         plt.text(
@@ -280,8 +280,8 @@ def roc_curves_plots(
                     verticalalignment='top',
                     transform=ax.transAxes)
             #plt.title('ROC curve', fontsize=11)
-            plt.xlabel(r'FPR', fontsize=11)
-            plt.ylabel(r'TPR', fontsize=11)
+            plt.xlabel(r'FPR')
+            plt.ylabel(r'TPR')
             plt.text(
                 0.99,
                 1.01,
@@ -440,6 +440,9 @@ def create_dnn_plots_multiclass(
         for cls_index in np.unique(predicted_class_index):
             # slice the prediction vector to the current class
             slice_mask = predicted_class_index == cls_index
+            
+            # select probabilities for events that are categorised as 
+            # class 'cls_index'
             current_predictions = (np.take_along_axis(
                 pred_vector, np.expand_dims(predicted_class_index, axis=-1), axis=-1)
                 .squeeze(axis=-1)
