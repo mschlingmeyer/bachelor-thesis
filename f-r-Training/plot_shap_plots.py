@@ -19,6 +19,9 @@ import dnn_utils
 
 HOMEPATH=os.path.realpath(os.path.dirname(__file__))
 
+thisdir = os.path.realpath(os.path.dirname(__file__))
+mlp_style_path = os.path.join(thisdir, "plot.mplstyle")
+
 label_dict = {
     "true_bjet1_pt": r'Generator p$_{T}$ (b-Jet 1)',
     "true_bjet2_pt": r'Generator p$_{T}$ (b-Jet 2)'
@@ -43,11 +46,21 @@ input_dict = {
     "bjet1_bID": r'bID (b-Jet 1)',
     "HT20": r'HT20',
     "dau1_pt": r'p$_{T}$ (Tau 1)',
+    "dau1_phi": r'$\phi$ (Tau 1)',
+    "dau1_e": r'E (Tau 1)',
+    "dau1_mass": r'm (Tau 1)',
     "dau2_pt": r'p$_{T}$ (Tau 2)',
+    "dau2_phi": r'$\phi$ (Tau 2)',
+    "dau2_e": r'E (Tau 2)',
+    "dau2_mass": r'm (Tau 2)',
     "tauH_mass": r'm (H$_{\tau\tau}$)',
     "tauH_pt": r'p$_{T}$ (H$_{\tau\tau}$)',
+    "tauH_phi": r'$\phi$ (H$_{\tau\tau}$)',
     "HH_mass": r'm (HH)',
     "HH_pt": r'p$_{T}$ (HH)',
+    "HH_phi": r'$\phi$ (HH)',
+    "HH_e": r'E (HH)',
+    "HH_eta": r'$\eta$ (HH)',
 }
 
 def create_plot(
@@ -58,16 +71,17 @@ def create_plot(
     class_names,
     max_display,
     outname):
-    fig, ax = plt.subplots(figsize=(20, 8))
-    shap.summary_plot(shap_values, test_all_features, plot_type=plot_type,
-        feature_names = [input_dict.get(x, x) for x in feature_names],
-        class_names = [label_dict.get(x, x) for x in class_names],
-        max_display = max_display, show = False)
-    
-    for ext in "png pdf".split():
-        final_outpath = f"{outname}_{plot_type}.{ext}"
-        plt.savefig(final_outpath)
-    plt.close()
+    with plt.style.context(mlp_style_path):
+        fig, ax = plt.subplots(figsize=(20, 8))
+        shap.summary_plot(shap_values, test_all_features, plot_type=plot_type,
+            feature_names = [input_dict.get(x, x.replace("_", r"\_")) for x in feature_names],
+            class_names = [label_dict.get(x, x) for x in class_names],
+            max_display = max_display, show = False)
+        
+        for ext in "png pdf".split():
+            final_outpath = f"{outname}_{plot_type}.{ext}"
+            plt.savefig(final_outpath)
+        plt.close()
 
 def split_features_from_labels(*args, **kwargs):
     return None, None, None
@@ -145,6 +159,7 @@ def calculate_shap_values(
         
         try:
             for i, label in enumerate(label_names):
+                label = label.replace("$", "").replace("\\", "").replace("{", "").replace("}", "")
                 print(f"drawing violin plot with {len(train_all_features)} events for class '{label}'")
                 create_plot(
                     shap_values=shap_values[i],
@@ -214,12 +229,17 @@ def main(dnn_folders, **kwargs):
         test_input = input_features_df[train_valid_events:]
         # train_input = data_handler.train_data
         # test_input = data_handler.test_data
+        label_map = hyperparameters.get("label_map", None)
+        if label_map:
+            label_names = [label_map[x] for x in sorted(label_map.keys())]
+        else:
+            label_names = data_handler.labels.columns
         calculate_shap_values(
             model = model,
             train_data=train_input,
             test_data=test_input,
             input_features=data_handler.input_features_list,
-            label_names=data_handler.labels.columns,
+            label_names=label_names,
             outname=f"{training_nr}_shap",
             # draw_violin=True
         )
