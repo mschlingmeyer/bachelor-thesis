@@ -167,6 +167,19 @@ def add_class_weights(df):
     # count occurance of values in column 'labels'
     label_counts = df["labels"].value_counts()
 
+    # count occurance of different kappa_lambda values
+    kl_counts = df["kappa_lambda"].value_counts()
+
+    # initialize array for kappa_lambda weights with the same dimension as
+    # original dataframe
+    kl_class_weights = np.zeros_like(df["kappa_lambda"], dtype="float64")
+
+    # loop through kappa_lambda counts and normalize each count to 
+    # the number of occurances
+    for kl_label, count in zip(kl_counts.index, kl_counts):
+        kl_class_weights += np.where(df["kappa_lambda"] == kl_label, 1./count, 0.)
+
+    df["kl_class_weights"] = kl_class_weights
     # initialize array for class weights with same dimension as labels column
     class_weights = np.zeros_like(df["labels"], dtype="float64")
     for label, count in zip(label_counts.index, label_counts):

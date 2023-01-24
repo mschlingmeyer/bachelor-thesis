@@ -88,8 +88,6 @@ def create_model_callbacks(
         )
 
     with plt.style.context(mlp_other_style):
-        print("DEBUG")
-        embed()
         callbacks.append(llp.PlotLossesKerasTF(
             outputs=[llp.outputs.MatplotlibPlot(cell_size=(8, 4))]
             )

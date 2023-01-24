@@ -19,6 +19,10 @@ parameter_config = {
     "tth": 9999,
 }
 
+label_map = {
+    "1": r'ggF$\rightarrow$HH (SM)',
+    "0": r'SM Backgrounds'
+}
 
 input_directories = [
     "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl0_kt1",
