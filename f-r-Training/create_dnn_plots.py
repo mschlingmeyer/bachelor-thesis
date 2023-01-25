@@ -12,6 +12,8 @@ from IPython import embed
 import dnn_utils
 from argparse import ArgumentParser
 import importlib
+import pandas as pd
+
 
 thisdir = os.path.realpath(os.path.dirname(__file__))
 mlp_style_path = os.path.join(thisdir, "plot.mplstyle")
@@ -229,7 +231,7 @@ def confusion_matrix_plot(
                         verticalalignment='center')
         plt.xticks(range(width), range(width))
         plt.yticks(range(height), range(height))
-        embed()
+        # embed()
         if change_tick_labels:
             plt.xticks(range(width), labels)
             plt.yticks(range(height), labels)
@@ -304,6 +306,8 @@ def main(dnn_folders, **kwargs):
     variable_config_path = kwargs.get("variable_config_path")
     input_files = kwargs.get("input_data", None)
     hyperparameters = kwargs.get("hyperparameters", None)
+    additional_test_samples = kwargs.get("additional_test_samples")
+    print("additional_test_samples", additional_test_samples)
     dnn_architectures = dict()
     if hyperparameters:
         dirname = os.path.dirname(hyperparameters)
@@ -358,17 +362,22 @@ def main(dnn_folders, **kwargs):
                 prefix=prefix,
                 input_feature_list=list(input_feature_list),
                 label_map=hyperparameters.get("label_map", None),
+                hyperparameters=hyperparameters,
+                additional_test_samples=additional_test_samples,
+
             )
         else:
             create_dnn_plots_binary(
-            model=model, 
-            std=std, 
-            mean=mean,
-            test_data=test_data,
-            prefix=prefix,
-            input_feature_list=list(input_feature_list),
-            label_map=hyperparameters.get("label_map", None),
-        )
+                model=model,
+                std=std,
+                mean=mean,
+                test_data=test_data,
+                prefix=prefix,
+                input_feature_list=list(input_feature_list),
+                label_map=hyperparameters.get("label_map", None),
+                hyperparameters=hyperparameters,
+                additional_test_samples=additional_test_samples,
+            )
 
 
 def build_jet_vector(pt, phi, eta):
@@ -405,8 +414,75 @@ def load_input_data(tf_data):
         inputs = np.asarray(inputs)
         y = np.asarray(y)
         weights = np.asarray(weights)
-    print(inputs,inputs.shape)
+    print(inputs, inputs.shape)
     return inputs, y, weights
+
+
+def load_additional_test_data(paths, kl_values, input_features_list, label_names, sum_signal_weights, training_weight_names=[], parametrized=False, **kwargs):
+    shuffle_random_state = 1
+    # if "kappa_lambda" not in input_features_list:
+    #     parametrized = False
+    if not parametrized:
+        print("non-parametrized network")
+        cols = input_features_list + label_names + training_weight_names + ["kappa_lambda"]
+    else:
+        # parametrized = True
+        cols = input_features_list + label_names + training_weight_names
+    source_paths = paths
+    try:
+        pd_data = pd.concat([
+                pd.read_parquet(
+                    file_path,
+                    columns=cols
+                )
+                for file_path in source_paths
+            ])
+
+
+        pd_data = pd_data[np.isin(pd_data["kappa_lambda"].to_numpy().astype("int32"),kl_values)]
+        pd_data.reset_index(drop=True, inplace=True)
+    except Exception as e:
+        print(e)
+        print("open debug shell")
+        embed()
+    print("additional data loaded, need to be changed")
+
+    pd_data = (pd_data.sample(frac=1, random_state=shuffle_random_state)
+               .reset_index(drop=True))
+    # pd_data = (pd_data.sort_values("kappa_lambda").reset_index(drop=True))
+    print("after sampling", pd_data)
+    #embed()
+
+
+    if "weight_equalize_sig_bkg" in training_weight_names:
+        pd_data["weight_equalize_sig_bkg"] = np.zeros_like(pd_data["kappa_lambda"].to_numpy())
+        for kl_value in kl_values:
+            print("weight_equalize_sig_bkg found")
+            test_sample = pd_data[pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value]
+            test_sample_tot_weights = np.sum(test_sample["class_weights"]*test_sample["plot_weight"]*test_sample["lumi_weight"])
+            ratio = float(sum_signal_weights/test_sample_tot_weights)
+            pd_data["weight_equalize_sig_bkg"] += np.where(pd_data["kappa_lambda"].to_numpy().astype("int32") == kl_value, ratio, 0.)
+
+    labels_list = [pd_data[label_names][pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value].to_numpy() for kl_value in kl_values]
+    weights_list = pd_data[training_weight_names].to_numpy()
+    print("weights before prod", weights_list.shape, weights_list)
+    # embed()
+    weights = np.prod(weights_list, axis=1)
+    print("after prod", weights.shape, weights)
+    weights_samplelist = [weights[pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value] for kl_value in kl_values]
+    print("after separation", weights_samplelist)
+    # if "kappa_lambda" not in input_features_list:
+    if not parametrized:
+        test_data = pd_data.drop(columns=label_names+training_weight_names+["kappa_lambda"])
+
+    else:
+        test_data = pd_data.drop(columns=label_names+training_weight_names)
+
+    test_data_list = [test_data[pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value] for kl_value in kl_values]
+
+    print("end loading additional samples:", test_data_list, labels_list, weights_samplelist)
+    return test_data_list, labels_list, weights_samplelist
+
 
 # fuer Maja: nur sinnvoll um zu gucken wie die Methoden genutzt werden
 def create_dnn_plots_multiclass(
@@ -417,7 +493,9 @@ def create_dnn_plots_multiclass(
     input_feature_list,
     prefix="baseline",
     outpath="plots",
-    label_map=None
+    label_map=None,
+    hyperparameters=None,
+    additional_test_samples=[],
 ):
 
     #print("test data", test_data)
@@ -427,10 +505,19 @@ def create_dnn_plots_multiclass(
     y = None
 
     test_data = test_data.unbatch()
-
     
     try:
         inputs, y, weights = load_input_data(test_data)
+
+        # if len(additional_test_samples) > 0:
+        #     print("labels for multiclass", y, y.shape)
+        #     embed()
+
+        #     sum_signal_weights = sum(weights[y[0] == 1])
+
+        #     additional_test_data_list, additional_labels_list, additional_weights_list = load_additional_test_data([os.path.join("additional_test_samples", "signal_samples_multiclass.parquet")],
+        #                                                                                                        additional_test_samples, input_feature_list, ["labels"], sum_signal_weights,
+        #                                                                                                        **hyperparameters)
 
         # get index of predicted class
         predicted_class_index = np.argmax(pred_vector, axis=1)
@@ -553,8 +640,9 @@ def create_dnn_plots_binary(
     input_feature_list,
     prefix="baseline",
     outpath="plots",
-    label_map=None
-
+    label_map=None,
+    hyperparameters=None,
+    additional_test_samples=[],
 ):
 
     #print("test data", test_data)
@@ -568,8 +656,20 @@ def create_dnn_plots_binary(
     try:
         inputs, y, weights = load_input_data(test_data)
         y = y.squeeze(-1)
+
+        if len(additional_test_samples) > 0:
+            sum_signal_weights = sum(weights[y == 1])
+
+            additional_test_data_list, additional_labels_list, additional_weights_list = load_additional_test_data([os.path.join("additional_test_samples", "signal_samples_binary.parquet")],
+                                                                                                                   additional_test_samples, input_feature_list, ["labels"], sum_signal_weights,
+                                                                                                                   **hyperparameters)
+            additional_labels_list = [additional_labels.flatten() for additional_labels in additional_labels_list]
+            pred_vector_additional_test_data_list = [model.predict(test_sample).flatten() for test_sample in additional_test_data_list]
+            print("predictions additional test samples", pred_vector_additional_test_data_list)
+
+
         pred_vector = pred_vector.squeeze(-1)
-        #embed()
+        # embed()
         mask_0 = np.ones_like(y)
         mask_1 = np.ones_like(y)
         if label_map:
@@ -593,6 +693,20 @@ def create_dnn_plots_binary(
 
         create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions", suffix=prefix)
     
+        if len(additional_test_samples) > 0:
+            for itest_sample, pred_test_sample in enumerate(pred_vector_additional_test_data_list):
+                other_plots_two(
+                    thing1=pred_vector[mask_0],
+                    thing2=pred_test_sample,
+                    xlabel="Network Output",
+                    title="",
+                    range=[0, 1],
+                    legends=[label_map[str(x)] for x in sorted_identifiers] if label_map else None,
+                    weights=[weights[mask_0], additional_weights_list[itest_sample]],
+                )
+
+                create_plot(os.path.join(thisdir, "dnn_plots"), "output_distributions_additional_test_sample_{}".format(additional_test_samples[itest_sample]), suffix=prefix)
+
     except Exception as e:
         print("error during readout of data!")
         print(e)
@@ -605,6 +719,17 @@ def create_dnn_plots_binary(
         prefix + "_roc_curves",
         sample_weight=weights
     )
+
+    if len(additional_test_samples) > 0:
+        # embed()
+        for itest_sample, pred_test_sample in enumerate(pred_vector_additional_test_data_list):
+            roc_curves_plots(
+                np.concatenate([pred_test_sample, pred_vector[mask_0]]).flatten(),
+                np.concatenate([additional_labels_list[itest_sample], y[mask_0]]).flatten(),
+                prefix + "_additional_test_sample_{}".format(additional_test_samples[itest_sample])+"_roc_curves",
+                sample_weight=np.concatenate([additional_weights_list[itest_sample], weights[mask_0]]).flatten()
+            )
+
     predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
 
     from sklearn.metrics import confusion_matrix
@@ -612,13 +737,29 @@ def create_dnn_plots_binary(
         y,
         predictions_class_labels,
         sample_weight=weights,
-        normalize="true" # or normalize="pred" depending on what you want
+        normalize="true"  # or normalize="pred" depending on what you want
     ) 
 
     confusion_matrix_plot(matrix, prefix + "_confusion_matrix",
         change_tick_labels = label_map is not None,
         labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
     )  # , colormap="jet", change_tick_labels=True)
+
+    if len(additional_test_samples) > 0:
+        for itest_sample, pred_test_sample in enumerate(pred_vector_additional_test_data_list):
+            predictions_class_labels_additional_test_sample = np.where(np.concatenate([pred_test_sample, pred_vector[mask_0]]).flatten() > 0.5, 1, 0)
+
+            matrix_additional_test_sample = confusion_matrix(
+                np.concatenate([additional_labels_list[itest_sample], y[mask_0]]),
+                predictions_class_labels_additional_test_sample,
+                sample_weight=np.concatenate([additional_weights_list[itest_sample], weights[mask_0]]),
+                normalize="true" # or normalize="pred" depending on what you want
+            )
+
+            confusion_matrix_plot(matrix_additional_test_sample, prefix +"_additional_test_sample_{}".format(additional_test_samples[itest_sample])+ "_confusion_matrix",
+                change_tick_labels = label_map is not None,
+                labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
+            )
 
     print("input_feature_list", input_feature_list, len(input_feature_list))
     if "kappa_lambda" in input_feature_list:
@@ -740,6 +881,13 @@ def parse_arguments():
         metavar="path/to/variable_config.json",
         default=os.path.join(thisdir, "variables.json"),
     )
+    parser.add_argument("-a", "--additional_test_samples",
+        nargs="*",
+        help="integer rounded kappa lambda values of the additional test samples to be plotted",
+        type=int,
+        default=[],
+    )
+
     args = parser.parse_args()
     return args
 
