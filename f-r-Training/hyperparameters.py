@@ -145,6 +145,7 @@ dnn_architectures["Doris_plot_and_lumi_weight"]["epochs"] = 800
 
 dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
 dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["Doris_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
 
 dnn_architectures["Doris_all_kl_values_in_training"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
 
@@ -172,6 +173,11 @@ dnn_architectures["Edgar"]["epochs"] = 5
 dnn_architectures["Edgar"]["label_map"] = preprocessing_multiclass_config.label_map
 dnn_architectures["Edgar"]["training_weight_names"] = ["class_weights"]
 dnn_architectures["Edgar"]["multiclass"] = True
+
+dnn_architectures["Edgar_equalize_bkg_sig"] = deepcopy(dnn_architectures["Edgar"])
+dnn_architectures["Edgar_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+
+
 # so wie new, nur andere lr
 # dnn_architectures["new_lr_lower"] = dnn_architectures["new"]
 

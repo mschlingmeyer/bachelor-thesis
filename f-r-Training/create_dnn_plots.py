@@ -418,7 +418,7 @@ def load_input_data(tf_data):
     return inputs, y, weights
 
 
-def load_additional_test_data(paths, kl_values, input_features_list, label_names, sum_signal_weights, training_weight_names=[], parametrized=False, **kwargs):
+def load_additional_test_data(paths, kl_values, input_features_list, label_names, sum_signal_weights, training_weight_names=[], parametrized=False, multiclass=False, **kwargs):
     shuffle_random_state = 1
     # if "kappa_lambda" not in input_features_list:
     #     parametrized = False
@@ -463,7 +463,12 @@ def load_additional_test_data(paths, kl_values, input_features_list, label_names
             ratio = float(sum_signal_weights/test_sample_tot_weights)
             pd_data["weight_equalize_sig_bkg"] += np.where(pd_data["kappa_lambda"].to_numpy().astype("int32") == kl_value, ratio, 0.)
 
-    labels_list = [pd_data[label_names][pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value].to_numpy() for kl_value in kl_values]
+    if multiclass:
+        labels_list_incremental=[pd_data[label_names][pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value].to_numpy() for kl_value in kl_values]
+        labels_list_incremental = [labels_incremental.flatten() for labels_incremental in labels_list_incremental]
+        labels_list=[np.eye(4)[label_incremental.astype("int32")] for label_incremental in labels_list_incremental]
+    else:
+        labels_list = [pd_data[label_names][pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value].to_numpy() for kl_value in kl_values]
     weights_list = pd_data[training_weight_names].to_numpy()
     print("weights before prod", weights_list.shape, weights_list)
     # embed()
@@ -478,7 +483,7 @@ def load_additional_test_data(paths, kl_values, input_features_list, label_names
     else:
         test_data = pd_data.drop(columns=label_names+training_weight_names)
 
-    test_data_list = [test_data[pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value] for kl_value in kl_values]
+    test_data_list = [test_data[pd_data["kappa_lambda"].to_numpy().astype("int32")==kl_value].to_numpy() for kl_value in kl_values]
 
     print("end loading additional samples:", test_data_list, labels_list, weights_samplelist)
     return test_data_list, labels_list, weights_samplelist
@@ -509,15 +514,19 @@ def create_dnn_plots_multiclass(
     try:
         inputs, y, weights = load_input_data(test_data)
 
-        # if len(additional_test_samples) > 0:
-        #     print("labels for multiclass", y, y.shape)
-        #     embed()
+        if len(additional_test_samples) > 0:
+            print("labels for multiclass", y, y.shape)
+            # embed()
 
-        #     sum_signal_weights = sum(weights[y[0] == 1])
+            sum_signal_weights = sum(weights[y[:,0] == 1])
 
-        #     additional_test_data_list, additional_labels_list, additional_weights_list = load_additional_test_data([os.path.join("additional_test_samples", "signal_samples_multiclass.parquet")],
-        #                                                                                                        additional_test_samples, input_feature_list, ["labels"], sum_signal_weights,
-        #                                                                                                        **hyperparameters)
+            additional_test_data_list, additional_labels_list, additional_weights_list = load_additional_test_data([os.path.join("additional_test_samples", "signal_samples_multiclass.parquet")],
+                                                                                                               additional_test_samples, input_feature_list, ["labels"], sum_signal_weights,
+                                                                                                               **hyperparameters)
+            pred_vector_additional_test_data_list = [model.predict(test_sample) for test_sample in additional_test_data_list]
+            print("predictions additional test samples", pred_vector_additional_test_data_list)
+            predicted_class_index_list_additional_test_samples = [np.argmax(pred_vector_additional_test_data, axis=1) for pred_vector_additional_test_data in pred_vector_additional_test_data_list]
+            true_class_index_list_additional_test_samples = [np.argmax(additional_labels, axis=1) for additional_labels in additional_labels_list]
 
         # get index of predicted class
         predicted_class_index = np.argmax(pred_vector, axis=1)
@@ -585,16 +594,81 @@ def create_dnn_plots_multiclass(
                 sample_weight=current_weights,
                 ax_legend=[r"{} vs Rest".format(label_map[str(cls_index)])] if label_map else None,
             )
+
+            if len(additional_test_samples) > 0:
+                slice_mask_list_additional_test_samples = [predicted_class_index_additional_test_samples == cls_index for predicted_class_index_additional_test_samples in predicted_class_index_list_additional_test_samples]
+
+                # select probabilities for events that are categorised as
+                # class 'cls_index'
+                for itest_sample, pred_test_sample in enumerate(pred_vector_additional_test_data_list):
+                    # embed()
+                    current_predictions_additional_test_sample = np.concatenate([(np.take_along_axis(
+                        pred_test_sample, np.expand_dims(
+                            predicted_class_index_list_additional_test_samples[itest_sample],
+                            axis=-1), axis=-1)
+                        .squeeze(axis=-1)
+                    )[slice_mask_list_additional_test_samples[itest_sample]], current_predictions[current_truth!=0]])
+                    if isinstance(additional_weights_list[itest_sample], np.ndarray):
+                        current_weights_additional_test_sample = np.concatenate([additional_weights_list[itest_sample][slice_mask_list_additional_test_samples[itest_sample]],
+                                                                                current_weights[current_truth!=0]])
+                    else:
+                        current_weights_additional_test_sample = None
+                    current_truth_additional_test_sample = np.concatenate([true_class_index_list_additional_test_samples[itest_sample][slice_mask_list_additional_test_samples[itest_sample]],
+                                                                          current_truth[current_truth!=0]])
+
+
+                    if isinstance(current_weights_additional_test_sample, np.ndarray):
+                        value_dict = {
+                            label_map.get(str(truth), str(truth)) if label_map else str(truth): {
+                                "values": current_predictions_additional_test_sample[current_truth_additional_test_sample == truth],
+                                "weights": current_weights_additional_test_sample[current_truth_additional_test_sample == truth],
+                            }
+                            for truth in np.unique(current_truth_additional_test_sample)
+                        }
+                    else:
+                        value_dict = {
+                            label_map.get(str(truth), str(truth)) if label_map else str(truth): {
+                                "values": current_predictions_additional_test_sample[current_truth_additional_test_sample == truth],
+                                "weights": None,
+                            }
+                            for truth in np.unique(current_truth_additional_test_sample)
+                        }
+
+                    plot_distributions(
+                        value_dict=value_dict,
+                        xlabel="Network Output",
+                        title="",
+                        range=[0, 1],
+                    )
+
+                    create_plot(
+                        os.path.join(thisdir, "dnn_plots"),
+                        f"output_distributions_cls_{cls_index}_additional_test_sample_{additional_test_samples[itest_sample]}",
+                        suffix=prefix
+                    )
+                    roc_curves_plots(
+                        current_predictions_additional_test_sample,
+                        np.where(current_truth_additional_test_sample == cls_index, 1, 0),
+                        prefix + f"_roc_curves_cls_{cls_index}_additional_test_sample_{additional_test_samples[itest_sample]}",
+                        sample_weight=current_weights_additional_test_sample,
+                        ax_legend=[r"{} vs Rest".format(label_map[str(cls_index)])] if label_map else None,
+                    )
+
+
             # predictions_class_labels = np.where(pred_vector.flatten() > 0.5, 1, 0)
         from sklearn.metrics import confusion_matrix
+        # embed()
         if label_map:
-            true_class_index = translate_labels(label_map=label_map,value_array = true_class_index)
+            true_class_index_label = translate_labels(label_map=label_map,value_array = true_class_index)
             predicted_class_index = translate_labels(label_map=label_map,value_array = predicted_class_index)
+        else:
+            true_class_index_label = true_class_index
         matrix = confusion_matrix(
-            true_class_index,
+            true_class_index_label,
             predicted_class_index,
             sample_weight=weights,
             normalize="true", # or normalize="pred" depending on what you want
+            labels=np.array(list(label_map.values())),
             # 
         ) 
         confusion_matrix_plot(
@@ -603,6 +677,27 @@ def create_dnn_plots_multiclass(
             change_tick_labels = label_map is not None,
             labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
         )  # , colormap="jet", change_tick_labels=True)
+
+        if len(additional_test_samples) > 0:
+            if label_map:
+                true_class_index_list_additional_test_samples = [translate_labels(label_map=label_map,value_array = true_class_index_add_test_sample)  for true_class_index_add_test_sample in true_class_index_list_additional_test_samples]
+                predicted_class_index_list_additional_test_samples = [translate_labels(label_map=label_map,value_array = pred_class_index_add_test_sample) for pred_class_index_add_test_sample in predicted_class_index_list_additional_test_samples]
+            for itest_sample, pred_class_index_test_sample in enumerate(predicted_class_index_list_additional_test_samples):
+                matrix = confusion_matrix(
+                    np.concatenate([true_class_index_list_additional_test_samples[itest_sample], true_class_index_label[true_class_index!=0]]),
+                    np.concatenate([pred_class_index_test_sample, predicted_class_index[true_class_index!=0]]),
+                    sample_weight=np.concatenate([additional_weights_list[itest_sample], weights[true_class_index!=0]]),
+                    normalize="true", # or normalize="pred" depending on what you want
+                    labels=np.array(list(label_map.values())),
+                    #
+                )
+                # embed()
+                confusion_matrix_plot(
+                    matrix,
+                    prefix + f"_confusion_matrix_additional_test_sample_{additional_test_samples[itest_sample]}",
+                    change_tick_labels = label_map is not None,
+                    labels=[label_map[x] for x in sorted(label_map.keys())] if label_map else None,
+                )  # , colormap="jet", change_tick_labels=True)
 
     except Exception as e:
         print("error during readout of data!")
@@ -615,6 +710,19 @@ def create_dnn_plots_multiclass(
 
     print("input_feature_list", input_feature_list, len(input_feature_list))
     if "kappa_lambda" in input_feature_list:
+        # HERE TO BE CHANGED SUCH THAT IT WORKS!!! + change weights
+        # if extrapolation != None:
+        #     bkg_indices=np.where(y==0)
+        #     for kl_value in [0,1,2.45,5]:
+        #         if int(kl_value)!=int(extrapolation):
+        #             kl_indices=np.where((y==1) & (inputs[:,-1]==kl_value))
+        #             make_parametrized_plots(model, inputs[kl_indices].copy(), y[kl_indices], weights[kl_indices],
+        #                         inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], kl_value, prefix, outpath)
+        #         else:
+        #             if int(kl_value) in additional_test_samples:
+        #                 make_parametrized_plots(model, additional_test_data_list[0], additional_labels_list[0], additional_weights_list[0],
+        #                         inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], kl_value, prefix, outpath)
+
         print("this is a parametrized network")
         kl0_indices=np.where((y==1) & (inputs[:,-1]==0))
         kl1_indices=np.where((y==1) & (inputs[:,-1]==1))
@@ -764,20 +872,37 @@ def create_dnn_plots_binary(
     print("input_feature_list", input_feature_list, len(input_feature_list))
     if "kappa_lambda" in input_feature_list:
         print("this is a parametrized network")
-        kl0_indices=np.where((y==1) & (inputs[:,-1]==0))
-        kl1_indices=np.where((y==1) & (inputs[:,-1]==1))
-        kl2p45_indices=np.where((y==1) & (inputs[:,-1]==2.45))
-        kl5_indices=np.where((y==1) & (inputs[:,-1]==5))
-        bkg_indices=np.where(y==0)
+        if extrapolation != None:
+            bkg_indices=np.where(y==0)
+            for kl_value in [0,1,2.45,5]:
+                if int(kl_value)!=int(extrapolation):
+                    kl_indices=np.where((y==1) & (inputs[:,-1]==kl_value))
+                    make_parametrized_plots(model, inputs[kl_indices].copy(), y[kl_indices], weights[kl_indices],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], kl_value, prefix + "_extrapolation_test_sample_{}".format(kl_value), outpath)
+                else:
+                    if int(kl_value) in additional_test_samples:
+                        make_parametrized_plots(model, additional_test_data_list[0], additional_labels_list[0], additional_weights_list[0],
+                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], kl_value, prefix + "_extrapolation_test_sample_{}".format(kl_value), outpath)
 
-        make_parametrized_plots(model, inputs[kl0_indices].copy(), y[kl0_indices], weights[kl0_indices],
-                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 0, prefix, outpath)
-        make_parametrized_plots(model, inputs[kl1_indices].copy(), y[kl1_indices], weights[kl1_indices],
-                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 1, prefix, outpath)
-        make_parametrized_plots(model, inputs[kl2p45_indices].copy(), y[kl2p45_indices], weights[kl2p45_indices],
-                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45, prefix, outpath)
-        make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
-                                inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5, prefix, outpath)
+        else:
+            kl0_indices=np.where((y==1) & (inputs[:,-1]==0))
+            kl1_indices=np.where((y==1) & (inputs[:,-1]==1))
+            kl2p45_indices=np.where((y==1) & (inputs[:,-1]==2.45))
+            kl5_indices=np.where((y==1) & (inputs[:,-1]==5))
+            bkg_indices=np.where(y==0)
+
+            make_parametrized_plots(model, inputs[kl0_indices].copy(), y[kl0_indices], weights[kl0_indices],
+                                    inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 0,
+                                    prefix + "_test_sample_{}".format(0), outpath)
+            make_parametrized_plots(model, inputs[kl1_indices].copy(), y[kl1_indices], weights[kl1_indices],
+                                    inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 1,
+                                    prefix + "_test_sample_{}".format(1), outpath)
+            make_parametrized_plots(model, inputs[kl2p45_indices].copy(), y[kl2p45_indices], weights[kl2p45_indices],
+                                    inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45,
+                                    prefix + "_test_sample_{}".format(2), outpath)
+            make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
+                                    inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5,
+                                    prefix + + "_test_sample_{}".format(5), outpath)
 
 
 def translate_labels(label_map, value_array):
