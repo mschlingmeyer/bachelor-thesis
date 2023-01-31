@@ -263,9 +263,14 @@ class DataHandler(object):
             final_weights = tf_class_weights.map(lambda x: tf.math.reduce_prod(x))
             class_weights_array_for_print=self.class_weights.prod(axis=1).to_numpy()
             labels_array_for_print=self.labels.to_numpy().reshape(-1)
-            print("final_weights", class_weights_array_for_print)
-            print("sum sig final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==1)]))
-            print("sum bkg final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==0)]))
+            if self.multiclass:
+                print("final_weights", class_weights_array_for_print)
+                print("sum sig final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==0)]))
+                print("sum bkg final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print!=0)]))
+            else:
+                print("final_weights", class_weights_array_for_print)
+                print("sum sig final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==1)]))
+                print("sum bkg final weights", sum(class_weights_array_for_print[np.where(labels_array_for_print==0)]))
 
             numeric_dict_ds = tf.data.Dataset.zip((tf_input_features, tf_labels, final_weights))
         else:

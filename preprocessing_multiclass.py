@@ -131,16 +131,16 @@ def add_columns(df):
     start = 1
     end=7
     for weight in np.logspace(start=start, stop=end, num=end-start+1, base=10, dtype="float32"):
-        reduced_df_with_added_columns[f"signal_weight_{int(weight)}"] = np.where(reduced_df_with_added_columns["labels"] == 1, weight, 1.)
+        reduced_df_with_added_columns[f"signal_weight_{int(weight)}"] = np.where(reduced_df_with_added_columns["labels"] == 0, weight, 1.)
     
-    bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] != 1]
-    sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 1]
+    bkg_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] != 0]
+    sig_df = reduced_df_with_added_columns[reduced_df_with_added_columns["labels"] == 0]
     bkg_weight = np.sum(bkg_df["class_weights"]*bkg_df["plot_weight"]*bkg_df["lumi_weight"])
     sig_weight = np.sum(sig_df["class_weights"]*sig_df["plot_weight"]*sig_df["lumi_weight"])
     ratio = bkg_weight/sig_weight if not any(x == 0 for x in [bkg_weight, sig_weight]) else 1.
-    reduced_df_with_added_columns["weight_equalize_sig_bkg"] = np.where(reduced_df_with_added_columns["labels"] == 1, ratio, 1.)
+    reduced_df_with_added_columns["weight_equalize_sig_bkg"] = np.where(reduced_df_with_added_columns["labels"] == 0, ratio, 1.)
     reduced_df_with_added_columns["weight_global"] = 1e12
-    # embed()
+    embed()
     return reduced_df_with_added_columns
 
 def change_features(df):
