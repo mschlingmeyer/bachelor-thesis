@@ -9,13 +9,13 @@ label_config = {
 
 # label_classes = [0,1]
 label_map = {
-    "1": r'ggF$\rightarrow$HH (SM)',
-    "0": r'SM Backgrounds'
+    "1": r'1',
+    "0": r'0'
 }
 
 input_directories = [
     "/afs/desy.de/user/s/schlingm/nfs/2018__dy",
-    "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl1_kt1",
+    "/afs/desy.de/user/s/schlingm/nfs/2018__hh_ggf_kl0_kt1",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_sl",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_fh",
     "/afs/desy.de/user/s/schlingm/nfs/2018__tt_dl",

@@ -61,11 +61,12 @@ def create_binary_model(
 ):
     # x = stack_dict(inputs, fun=tf.concat)
     N = inputs.shape[1]*n_nodes_per_layer+((n_hidden_layers-1)*n_nodes_per_layer**2)+n_nodes_per_layer*2
+    #print("the number N is ",N)
     x = inputs
     # from IPython import embed; embed()
     # x = tf.keras.Input(shape=(len(inputs.columns),))
     a = tf.keras.layers.BatchNormalization(axis=-1)(x)
-    regulizer = tf.keras.regularizers.L2(l2_norm / N)
+    regulizer = tf.keras.regularizers.L2(l2_norm /N )
     for i in range(n_hidden_layers):
         if i==0:
             a = tf.keras.layers.Dense(
@@ -110,12 +111,12 @@ def create_multiclass_model(
     **kwargs
 ):
     # x = stack_dict(inputs, fun=tf.concat)
-    N = inputs.shape[1]*n_nodes_per_layer+((n_hidden_layers-1)*n_nodes_per_layer**2)+n_nodes_per_layer*2
+    #N = inputs.shape[1]*n_nodes_per_layer+((n_hidden_layers-1)*n_nodes_per_layer**2)+n_nodes_per_layer*2
     x = inputs
     # from IPython import embed; embed()
     # x = tf.keras.Input(shape=(len(inputs.columns),))
     a = tf.keras.layers.BatchNormalization(axis=-1)(x)
-    regulizer = tf.keras.regularizers.L2(l2_norm / N)
+    regulizer = tf.keras.regularizers.L2(l2_norm)
     for i in range(n_hidden_layers):
         if i==0:
             a = tf.keras.layers.Dense(

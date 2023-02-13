@@ -331,12 +331,21 @@ def main(dnn_folders, **kwargs):
         hyperparameters = dnn_architectures.get(prefix, dict())
         print("hyperparameters", prefix, hyperparameters)
 
-        data_handler = data.DataHandler(
-            variable_config_path=variable_config_path,
-            file_paths=input_files,
-            #parametrized=True,
-            **hyperparameters
-        )
+        parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False)
+        if parametrization_upon_plotting:
+            data_handler = data.DataHandler(
+                variable_config_path=variable_config_path,
+                file_paths=input_files,
+                parametrized=True,
+                **hyperparameters
+            )
+        else:
+            data_handler = data.DataHandler(
+                variable_config_path=variable_config_path,
+                file_paths=input_files,
+                #parametrized=True,
+                **hyperparameters
+            )
 
         mean = data_handler.label_means
         std = data_handler.label_stds
@@ -364,6 +373,7 @@ def main(dnn_folders, **kwargs):
                 label_map=hyperparameters.get("label_map", None),
                 hyperparameters=hyperparameters,
                 additional_test_samples=additional_test_samples,
+                extrapolation=hyperparameters.get("extrapolation", None)
 
             )
         else:
@@ -377,6 +387,7 @@ def main(dnn_folders, **kwargs):
                 label_map=hyperparameters.get("label_map", None),
                 hyperparameters=hyperparameters,
                 additional_test_samples=additional_test_samples,
+                extrapolation=hyperparameters.get("extrapolation", None)
             )
 
 
@@ -501,6 +512,7 @@ def create_dnn_plots_multiclass(
     label_map=None,
     hyperparameters=None,
     additional_test_samples=[],
+    extrapolation=None,
 ):
 
     #print("test data", test_data)
@@ -751,10 +763,12 @@ def create_dnn_plots_binary(
     label_map=None,
     hyperparameters=None,
     additional_test_samples=[],
+    extrapolation=None,
 ):
 
     #print("test data", test_data)
-    pred_vector = model.predict(test_data)
+    if not hyperparameters.get("parametrization_upon_plotting", False):
+        pred_vector = model.predict(test_data)
     #print(pred_vector.shape)
     weights = None
     y = None
@@ -763,6 +777,8 @@ def create_dnn_plots_binary(
 
     try:
         inputs, y, weights = load_input_data(test_data)
+        if hyperparameters.get("parametrization_upon_plotting", False):
+            pred_vector = model.predict(inputs[:,:-1])
         y = y.squeeze(-1)
 
         if len(additional_test_samples) > 0:
@@ -893,16 +909,20 @@ def create_dnn_plots_binary(
 
             make_parametrized_plots(model, inputs[kl0_indices].copy(), y[kl0_indices], weights[kl0_indices],
                                     inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 0,
-                                    prefix + "_test_sample_{}".format(0), outpath)
+                                    prefix + "_test_sample_{}".format(0), outpath, 
+                                    parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
             make_parametrized_plots(model, inputs[kl1_indices].copy(), y[kl1_indices], weights[kl1_indices],
                                     inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 1,
-                                    prefix + "_test_sample_{}".format(1), outpath)
+                                    prefix + "_test_sample_{}".format(1), outpath, 
+                                    parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
             make_parametrized_plots(model, inputs[kl2p45_indices].copy(), y[kl2p45_indices], weights[kl2p45_indices],
                                     inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 2.45,
-                                    prefix + "_test_sample_{}".format(2), outpath)
+                                    prefix + "_test_sample_{}".format(2), outpath, 
+                                    parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
             make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
                                     inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5,
-                                    prefix + + "_test_sample_{}".format(5), outpath)
+                                    prefix + + "_test_sample_{}".format(5), outpath, 
+                                    parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
 
 
 def translate_labels(label_map, value_array):
@@ -944,11 +964,16 @@ def make_parametrized_plots(model, signal,
                             background_weights,
                             kl_value,
                             prefix,
-                            outpath):
+                            outpath,
+                            parametrization_upon_plotting=False):
     signal[:,-1]=kl_value
     background[:,-1]=kl_value
-    prediction_background = model.predict(background)
-    prediction_signal = model.predict(signal)
+    if parametrization_upon_plotting:
+        prediction_background = model.predict(background[:,:-1])
+        prediction_signal = model.predict(signal[:,:-1])
+    else:
+        prediction_background = model.predict(background)
+        prediction_signal = model.predict(signal)
 
     other_plots_two(
         thing1=prediction_signal,

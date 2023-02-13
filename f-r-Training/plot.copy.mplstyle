@@ -64,7 +64,7 @@ legend.framealpha:    1
 legend.facecolor:     white # Farbe des Hintergrundes
 legend.fancybox: False     # True = abgerundete Ecken
 legend.markerscale:   1.0      # relative Größe des Markers in der Legende
-legend.fontsize:      50     # vorher 50
+legend.fontsize:      20     # vorher 50
 legend.title_fontsize: None    # None = default der axes, alternativ Zahl
 
 ## Größe der Legende als relativer Wert

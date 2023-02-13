@@ -49,7 +49,7 @@ def create_model_callbacks(
 ):
 
     callbacks = []
-    speicherort = f'./qu_tf_tutorial/checkpoints/{name}' + "_cp-{epoch:03d}.ckpt"
+    speicherort = f'/nfs/dust/cms/user/schlingm/checkpoints/{name}' + "_cp-{epoch:03d}.ckpt"
 
     # number_training_samples = len(train_data)
     

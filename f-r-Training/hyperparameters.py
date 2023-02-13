@@ -116,8 +116,8 @@ dnn_architectures = {
         # Parameter in create_model
         # activation kann auch prelu sein
         # zwischen 2 und 5 layer, zwischen 50 und 500 nodes
-        "n_hidden_layers":4,
-        "n_nodes_per_layer":400,
+        "n_hidden_layers":5,
+        "n_nodes_per_layer":450,
         "l2_norm":1e-3,
         "activation": "relu",
         
@@ -125,6 +125,37 @@ dnn_architectures = {
         # Parameter in data.py
         "BATCH_SIZE":500,  
     },
+
+
+    "Finn":
+    {
+        # Parameter in Keras-Sachen_test.py
+        # Parameter in def main
+        # "batch_size" : 1000,
+        "epochs" : 150,
+        "checkpoint_frequency": 50,
+        "early_stopping_criteria": 0.1,
+        "early_stopping_patience": 30,
+
+        # Parameter in def main im lr_schedule
+        # learning rate normalerweise zwischen 1e-3 und 1e-5
+        "initial_learning_rate":1e-3,
+        "decay_steps":1000,
+        "decay_rate":0.4,
+
+        # Parameter in create_model
+        # activation kann auch prelu sein
+        # zwischen 2 und 5 layer, zwischen 50 und 500 nodes
+        "n_hidden_layers":4,
+        "n_nodes_per_layer":350,
+        "l2_norm":1e-3,
+        "activation": "relu",
+        
+
+        # Parameter in data.py
+        "BATCH_SIZE":500,  
+    },
+
 
 }
 
@@ -143,18 +174,25 @@ dnn_architectures["Doris_plot_and_lumi_weight"] = deepcopy(dnn_architectures["Do
 dnn_architectures["Doris_plot_and_lumi_weight"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight"]
 dnn_architectures["Doris_plot_and_lumi_weight"]["epochs"] = 800
 
-dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
+dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Finn"])
 dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
 dnn_architectures["Doris_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
 
 dnn_architectures["Doris_all_kl_values_in_training"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
-
+dnn_architectures["Doris_all_kl_values_in_training"]["parametrization_upon_plotting"] = True
 
 dnn_architectures["Doris_equalize_bkg_sig_parametrized"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
 dnn_architectures["Doris_equalize_bkg_sig_parametrized"]["parametrized"] = True
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"]["label_map"] = preprocessing_binary_config.label_map
+
+
 
 dnn_architectures["Doris_kl_class_weights_parametrized"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig_parametrized"])
 dnn_architectures["Doris_kl_class_weights_parametrized"]["training_weight_names"] = ["kl_class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"] = deepcopy(dnn_architectures["Doris_kl_class_weights_parametrized"])
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"]["extrapolation"] = 1.
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"]["label_map"] = preprocessing_binary_config.label_map
 
 
 dnn_architectures["Doris_equalize_bkg_sig_v2"] = deepcopy(dnn_architectures["Doris_plot_and_lumi_weight"])
@@ -176,6 +214,7 @@ dnn_architectures["Edgar"]["multiclass"] = True
 
 dnn_architectures["Edgar_equalize_bkg_sig"] = deepcopy(dnn_architectures["Edgar"])
 dnn_architectures["Edgar_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+
 
 
 # so wie new, nur andere lr
@@ -203,3 +242,71 @@ dnn_architectures["Edgar_equalize_bkg_sig"]["training_weight_names"] = ["class_w
 
 # dnn_architectures["mit_prelu_erweitert"]["initial_learning_rate"] = 1e-5
 # dnn_architectures["mit_prelu_erweitert"]["epochs"] = 50
+
+
+
+dnn_architectures["David_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
+dnn_architectures["David_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["David_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+ 
+dnn_architectures["David_equalize_bkg_sig_parametrized"] = deepcopy(dnn_architectures["David_equalize_bkg_sig"])
+dnn_architectures["David_equalize_bkg_sig_parametrized"]["parametrized"] = True
+dnn_architectures["David_equalize_bkg_sig_parametrized"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["David_kl_class_weights_parametrized"] = deepcopy(dnn_architectures["David_equalize_bkg_sig_parametrized"])
+dnn_architectures["David_kl_class_weights_parametrized"]["training_weight_names"] = ["kl_class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["David_kl_class_weights_parametrized"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["David_kl_class_weights_extrapolation_1"] = deepcopy(dnn_architectures["David_kl_class_weights_parametrized"])
+dnn_architectures["David_kl_class_weights_extrapolation_1"]["extrapolation"] = 1.
+dnn_architectures["David_kl_class_weights_extrapolation_1"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["David_kl_class_weights_extrapolation_0"] = deepcopy(dnn_architectures["David_kl_class_weights_parametrized"])
+dnn_architectures["David_kl_class_weights_extrapolation_0"]["extrapolation"] = 0.
+dnn_architectures["David_kl_class_weights_extrapolation_0"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_equalize_bkg_sig"] = deepcopy(dnn_architectures["Finn"])
+dnn_architectures["Doris_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["Doris_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+ 
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"]["parametrized"] = True
+dnn_architectures["Doris_equalize_bkg_sig_parametrized"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_kl_class_weights_parametrized"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig_parametrized"])
+dnn_architectures["Doris_kl_class_weights_parametrized"]["training_weight_names"] = ["kl_class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["Doris_kl_class_weights_parametrized"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"] = deepcopy(dnn_architectures["Doris_kl_class_weights_parametrized"])
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"]["extrapolation"] = 1.
+dnn_architectures["Doris_kl_class_weights_extrapolation_1"]["label_map"] = preprocessing_binary_config.label_map
+
+
+
+dnn_architectures["C_kl0_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
+dnn_architectures["C_kl0_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["C_kl0_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["F_kl0_equalize_bkg_sig"] = deepcopy(dnn_architectures["Finn"])
+dnn_architectures["F_kl0_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["F_kl0_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_Finn_equalize_bkg_sig"] = deepcopy(dnn_architectures["Finn"])
+dnn_architectures["Doris_Finn_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["Doris_Finn_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_Finn_all_kl_values_in_training"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
+dnn_architectures["Doris_Finn_all_kl_values_in_training"]["parametrization_upon_plotting"] = True
+dnn_architectures["Doris_Finn_all_kl_values_in_training"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_C_equalize_bkg_sig"] = deepcopy(dnn_architectures["Charles"])
+dnn_architectures["Doris_C_equalize_bkg_sig"]["training_weight_names"] = ["class_weights", "plot_weight", "lumi_weight", "weight_equalize_sig_bkg"]
+dnn_architectures["Doris_C_equalize_bkg_sig"]["label_map"] = preprocessing_binary_config.label_map
+
+dnn_architectures["Doris_Charles_all_kl_values_in_training"] = deepcopy(dnn_architectures["Doris_equalize_bkg_sig"])
+dnn_architectures["Doris_Charles_all_kl_values_in_training"]["parametrization_upon_plotting"] = True
+dnn_architectures["Doris_Charles_all_kl_values_in_training"]["label_map"] = preprocessing_binary_config.label_map
+
+
+
+

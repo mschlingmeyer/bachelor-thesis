@@ -20,8 +20,8 @@ parameter_config = {
 }
 
 label_map = {
-    "1": r'ggF$\rightarrow$HH (SM)',
-    "0": r'SM Backgrounds'
+    "1": r'1',
+    "0": r'0'
 }
 
 input_directories = [
