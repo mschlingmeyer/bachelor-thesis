@@ -158,17 +158,31 @@ def calculate_shap_values(
     if draw_violin:
         
         try:
-            for i, label in enumerate(label_names):
+            # if len(label_names) > 2:
+            for label, these_shap_values in zip(label_names, shap_values):
                 label = label.replace("$", "").replace("\\", "").replace("{", "").replace("}", "")
                 print(f"drawing violin plot with {len(train_all_features)} events for class '{label}'")
                 create_plot(
-                    shap_values=shap_values[i],
+                    shap_values=these_shap_values,
                     test_all_features=shap_test,
                     plot_type="violin",
                     feature_names=input_features_all,
                     class_names=[label],
                     max_display=max_display,
                     outname=os.path.join(outpath, f"{outname}_{label}"))
+            # else:
+            #     label='Binary Classification'
+            #     label = label.replace("$", "").replace("\\", "").replace("{", "").replace("}", "")
+
+            #     print(f"drawing violin plot with {len(train_all_features)} events for class '{label}'")
+            #     create_plot(
+            #         shap_values=shap_values,
+            #         test_all_features=shap_test,
+            #         plot_type="violin",
+            #         feature_names=input_features_all,
+            #         class_names=[label],
+            #         max_display=max_display,
+            #         outname=os.path.join(outpath, f"{outname}_{label}"))
         except Exception as e:
             print(e)
             print("start IPython shell")
