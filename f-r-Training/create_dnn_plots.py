@@ -921,7 +921,7 @@ def create_dnn_plots_binary(
                                     parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
             make_parametrized_plots(model, inputs[kl5_indices].copy(), y[kl5_indices], weights[kl5_indices],
                                     inputs[bkg_indices].copy(), y[bkg_indices], weights[bkg_indices], 5,
-                                    prefix + + "_test_sample_{}".format(5), outpath, 
+                                    prefix + "_test_sample_{}".format(5), outpath, 
                                     parametrization_upon_plotting=hyperparameters.get("parametrization_upon_plotting", False))
 
 
